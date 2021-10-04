@@ -66,6 +66,7 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context);
 static void on_adv_evt(ble_adv_evt_t ble_adv_evt);
 static void on_ble_service_discovered(ble_db_discovery_evt_t * p_evt);
 static bool addr_in_whitelist(ble_gap_addr_t const *ble_addr) { return (memcmp(ble_addr->addr + APP_BLE_ADV_SCHED_EUI_LENGTH, _wl_addr_base.addr + APP_BLE_ADV_SCHED_EUI_LENGTH, sizeof(_wl_addr_base.addr) - APP_BLE_ADV_SCHED_EUI_LENGTH) == 0); }
+static void print_address(const ble_gap_evt_adv_report_t* p_adv_report);
 static uint8_t ascii_to_i(uint8_t number)
 {
    // Convert single digit of ASCII in hex to a number
@@ -80,6 +81,16 @@ static uint8_t ascii_to_i(uint8_t number)
    return 0;
 }
 
+void print_address(const ble_gap_evt_adv_report_t* p_adv_report) {
+    log_printf("addr: %02x:%02x:%02x:%02x:%02x:%02x",
+       p_adv_report->peer_addr.addr[5],
+       p_adv_report->peer_addr.addr[4],
+       p_adv_report->peer_addr.addr[3],
+       p_adv_report->peer_addr.addr[2],
+       p_adv_report->peer_addr.addr[1],
+       p_adv_report->peer_addr.addr[0]);
+}
+
 
 // Bluetooth initialization --------------------------------------------------------------------------------------------
 
@@ -90,7 +101,7 @@ static void ble_stack_init(void)
    APP_ERROR_CHECK(nrf_sdh_enable_request());
    APP_ERROR_CHECK(nrf_sdh_ble_default_cfg_set(APP_BLE_CONN_CFG_TAG, &ram_start));
    APP_ERROR_CHECK(nrf_sdh_ble_enable(&ram_start));
-   NRF_SDH_BLE_OBSERVER(_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
+   NRF_SDH_BLE_OBSERVER(_ble_observer, 3, ble_evt_handler, NULL);
 }
 
 static void gap_params_init(void)
@@ -269,6 +280,8 @@ static void advertising_init(void)
 
 void assert_nrf_callback(uint16_t line_num, const uint8_t *p_file_name) { app_error_handler(DEAD_BEEF, line_num, p_file_name); }
 
+
+
 static uint8_t on_scheduler_eui(const uint8_t* scheduler_eui, bool force_update)
 {
    // Only reconfigure if scheduler is non-zero and has changed
@@ -309,14 +322,17 @@ static uint32_t adv_report_parse(uint8_t type, const ble_data_t* p_advdata, ble_
 }
 
 static void on_adv_report(ble_gap_evt_adv_report_t const *p_adv_report)
-{
+{  
+   print_address(p_adv_report);
+   log_printf("addr: %u, on_adv_report outer RSSI: %d \n",p_adv_report->peer_addr.addr, p_adv_report->rssi); 
+	 
    // Only handle non-response BLE packets from devices we know
    if (!p_adv_report->type.scan_response && addr_in_whitelist(&p_adv_report->peer_addr) && (memcmp(p_adv_report->peer_addr.addr, _empty_eui, sizeof(_empty_eui)) != 0))
    {
       // Update the highest discovered EUI in the network
       ble_data_t advdata = { 0 };
       nrfx_err_t err_code = adv_report_parse(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &p_adv_report->data, &advdata);
-      if (memcmp(p_adv_report->peer_addr.addr, _highest_discovered_eui, sizeof(_highest_discovered_eui)) > 0)
+      if (memcmp(p_adv_report->peer_addr.addr, _highest_discovered_eui, sizeof(_highest_discovered_eui)) > 0) //higher value than highest
       {
          memcpy(&_networked_device_addr, &p_adv_report->peer_addr, sizeof(_networked_device_addr));
          memcpy(_highest_discovered_eui, p_adv_report->peer_addr.addr, sizeof(_highest_discovered_eui));
@@ -379,6 +395,8 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 
 void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
 {
+   log_printf("BLE EVENT: %d \n",p_ble_evt->header.evt_id);	
+	
    switch (p_ble_evt->header.evt_id)
    {
       case BLE_GATTS_EVT_WRITE:
@@ -393,6 +411,11 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
       }
       case BLE_GAP_EVT_CONNECTED:
       {
+		 log_printf("BLE CONNECTED!\n");
+		 
+		 //start rssi reporting
+		 APP_ERROR_CHECK(sd_ble_gap_rssi_start(p_ble_evt->evt.gap_evt.conn_handle,0,0));
+		    
          // Assign BLE connection handle
          _carrier_ble_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
          APP_ERROR_CHECK(nrf_ble_qwr_conn_handle_assign(&_qwr, _carrier_ble_conn_handle));
@@ -407,10 +430,24 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
       }
       case BLE_GAP_EVT_DISCONNECTED:
       {
+		  
+		 log_printf("ble disconnected!\n");
          _outgoing_ble_connection_active = 0;
          _carrier_ble_conn_handle = BLE_CONN_HANDLE_INVALID;
          break;
       }
+	  
+	  case BLE_GAP_EVT_RSSI_CHANGED:
+	  {
+	  	int8_t rssi_value =     p_ble_evt->evt.gap_evt.params.rssi_changed.rssi;
+		uint8_t rssi_channel =  p_ble_evt->evt.gap_evt.params.rssi_changed.ch_index;
+		
+		 //cannot get correct peer address here because the params in evt.gap_evt is a union... see https://devzone.nordicsemi.com/f/nordic-q-a/38445/getting-the-rssi-value-on-peripheral-side-of-a-phone-connected-to-the-peripheral
+		//log_printf("RSSI changed, new: %d, channel: %d %02x:%02x:%02x:%02x:%02x:%02x \n",rssi_value, rssi_channel, p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[5],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[4],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[3],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[2],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[1],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[0]); 
+		log_printf("RSSI changed, new: %d, channel: %d \n",rssi_value, rssi_channel);
+		
+		
+	  }
       case BLE_GAP_EVT_ADV_REPORT:
       {
          on_adv_report(&p_ble_evt->evt.gap_evt.params.adv_report);
@@ -522,6 +559,8 @@ void ble_start_scanning(void)
 
 void ble_stop_scanning(void)
 {
+   log_printf("BLE STOP SCANNING called\n");
+   	
    sd_ble_gap_scan_stop();
    nrfx_atomic_flag_clear(_ble_scanning_flag);
    nrfx_atomic_u32_store(&_network_discovered_counter, 0);
