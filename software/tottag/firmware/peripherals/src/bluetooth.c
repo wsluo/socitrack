@@ -449,6 +449,7 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
 		//log_printf("RSSI changed, new: %d, channel: %d %02x:%02x:%02x:%02x:%02x:%02x \n",rssi_value, rssi_channel, p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[5],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[4],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[3],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[2],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[1],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[0]); 
 		log_printf("RSSI changed, new: %d, channel: %d, time: %lu \n",rssi_value, rssi_channel, rtc_get_current_time());
 		
+		sd_card_log_RSSI(rssi_value, rssi_channel, rtc_get_current_time(), false);
 		
 	  }
       case BLE_GAP_EVT_ADV_REPORT:

@@ -23,5 +23,6 @@ void sd_card_log_ranges(const uint8_t *data, uint16_t length);
 void sd_card_log_battery(uint16_t battery_millivolts, uint32_t current_time, bool flush);
 void sd_card_log_charging(bool plugged_in, bool is_charging, uint32_t current_time, bool flush);
 void sd_card_log_motion(bool in_motion, uint32_t current_time, bool flush);
+void sd_card_log_RSSI(int8_t rssi, uint8_t channel,uint32_t current_time, bool flush);
 
 #endif // #ifndef __SD_CARD_HEADER_H

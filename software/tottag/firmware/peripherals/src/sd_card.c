@@ -489,7 +489,7 @@ void sd_card_log_ranges(const uint8_t *data, uint16_t length)
       sprintf(_log_ranges_buf + offset_buf + 29, "%06lu\n", range);
       */
 	  
-	  //SQUAREPOINT_RX_COUNT 
+	  //write all raw data points (plus the median value, write first among all)
 	  for (uint8_t j=0; j<SQUAREPOINT_RX_COUNT; j++){
 		  memcpy(&range, data + offset_data + SQUAREPOINT_EUI_LEN + j * sizeof(range), sizeof(range));
 	      if (range > APP_LOG_OUT_OF_RANGE_VALUE){
@@ -518,11 +518,26 @@ void sd_card_log_ranges(const uint8_t *data, uint16_t length)
       sd_card_create_log(current_timestamp, false);
    }
 
-   // Write buffer to the SD card
-   sd_card_write(_log_ranges_buf, offset_buf, false);
+   // Write buffer to the SD card 
+   sd_card_write(_log_ranges_buf, offset_buf, false); //size of _log_ranges_buf : APP_LOG_BUFFER_LENGTH. _log_ranges_buf is reset each time new data is available
 
 #endif
 }
+
+
+void sd_card_log_RSSI(int8_t rssi, uint8_t channel,uint32_t current_time, bool flush){
+	
+    // Start a new log file if it is a new day
+    if (_next_day_timestamp && (current_time >= _next_day_timestamp))
+    {
+       printf("INFO: Starting new SD card log file...new day detected\n");
+       sd_card_create_log(current_time, false);
+    }
+	
+    uint16_t bytes_written = (uint16_t)snprintf(_sd_write_buf, sizeof(_sd_write_buf), "### RSSI: %hd, %hu, %lu\n", rssi, channel, current_time);
+    sd_card_write(_sd_write_buf, bytes_written, flush);
+}
+
 
 void sd_card_log_battery(uint16_t battery_millivolts, uint32_t current_time, bool flush)
 {
