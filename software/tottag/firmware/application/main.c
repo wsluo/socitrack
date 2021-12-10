@@ -335,16 +335,9 @@ static void squarepoint_data_handler(uint8_t *data, uint32_t len)
                log_printf("INFO:     Device %02X with millimeter range %lu\n", data[offset + 0], range);
 			   */
 				
-			   uint16_t offset = packet_overhead + (i * APP_LOG_RANGE_LENGTH);
+			   uint16_t offset = packet_overhead + (i * APP_LOG_RANGE_LENGTH); //APP_LOG_RANGE_LENGTH = len(eui) + len of all data in a single result
 			   log_printf("INFO:     Device %02X with millimeter range ",data[offset + 0]);
-			   //uint16_t base = offset + SQUAREPOINT_EUI_LEN;
-			   
-			   //uint32_t buffer[200];
-			   //snprintf (buffer, 200, "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu", get_int(base),get_int(base+4),get_int(base+8),get_int(base+12),get_int(base+16),get_int(base+20),get_int(base+240,get_intbase+28),get_int(base+32),get_int(base+36));
-			   
-			   //snprintf (buffer, 200, "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu", *(uint32_t*)(base+40),*(uint32_t*)(base+44),*(uint32_t*)(base+48),*(uint32_t*)(base+52),*(uint32_t*)(base+56),*(uint32_t*)(base+60),*(uint32_t*)(base+64),*(uint32_t*)(base+68),*(uint32_t*)(base+72),*(uint32_t*)(base+76));
-			   //log_printf(buffer);
-			   //snprintf (buffer, 200, "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu", data[base+80],data[base+84],data[base+88],data[base+92],data[base+96],data[base+100],data[base+104],data[base+108],data[base+112],data[base+116]);
+
 			   
 			   for (uint8_t rx_index = 0; rx_index < SQUAREPOINT_RX_COUNT; ++rx_index){
 				   memcpy(&range, data + offset + SQUAREPOINT_EUI_LEN + rx_index * sizeof(range), sizeof(range));
@@ -357,7 +350,7 @@ static void squarepoint_data_handler(uint8_t *data, uint32_t len)
             }
 
          // Copy the ranging data to the ranging buffer
-         _range_buffer_length = (uint16_t)MIN(len - 1, APP_BLE_BUFFER_LENGTH);
+         _range_buffer_length = (uint16_t)MIN(len - 1, APP_BLE_BUFFER_LENGTH); //the size of _range_buffer is APP_BLE_BUFFER_LENGTH, which is 256 in the original version
          memcpy(_range_buffer, data + 1, _range_buffer_length);
 
          // Update the application epoch

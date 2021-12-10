@@ -481,12 +481,31 @@ void sd_card_log_ranges(const uint8_t *data, uint16_t length)
          sprintf(_log_ranges_buf + offset_buf + 10 + index, ":%02x", data[offset_data + j]);
       sprintf(_log_ranges_buf + offset_buf + 28, "\t");
 
-      // Write range
+      /*
+      // Write range , need modification, original version only writes single range (uint32_t)
       memcpy(&range, data + offset_data + SQUAREPOINT_EUI_LEN, sizeof(range));
       if (range > APP_LOG_OUT_OF_RANGE_VALUE)
          range = APP_LOG_OUT_OF_RANGE_VALUE;
       sprintf(_log_ranges_buf + offset_buf + 29, "%06lu\n", range);
-
+      */
+	  
+	  //SQUAREPOINT_RX_COUNT 
+	  for (uint8_t j=0; j<SQUAREPOINT_RX_COUNT; j++){
+		  memcpy(&range, data + offset_data + SQUAREPOINT_EUI_LEN + j * sizeof(range), sizeof(range));
+	      if (range > APP_LOG_OUT_OF_RANGE_VALUE){
+			  range = APP_LOG_OUT_OF_RANGE_VALUE;
+	      }
+		  sprintf(_log_ranges_buf + offset_buf + 29 + 7 * j, "%06lu", range);
+		  
+		  if (j!=(SQUAREPOINT_RX_COUNT-1)){
+			  sprintf(_log_ranges_buf + offset_buf + 29 + 7 * j + 6, "\t");
+		  }
+		  else{
+			   sprintf(_log_ranges_buf + offset_buf + 29 + 7 * j + 6, "\n");  	
+		  }
+	  }
+	  
+	  
       // Update the data and buffer offsets
       offset_data += APP_LOG_RANGE_LENGTH;
       offset_buf += APP_LOG_BUFFER_LINE;
