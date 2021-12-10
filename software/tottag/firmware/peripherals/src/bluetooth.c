@@ -81,8 +81,8 @@ static uint8_t ascii_to_i(uint8_t number)
    return 0;
 }
 
-void print_address(const ble_gap_evt_adv_report_t* p_adv_report) {
-    log_printf("addr: %02x:%02x:%02x:%02x:%02x:%02x",
+static void print_address(const ble_gap_evt_adv_report_t* p_adv_report) {
+    log_printf("addr: %02x:%02x:%02x:%02x:%02x:%02x \n",
        p_adv_report->peer_addr.addr[5],
        p_adv_report->peer_addr.addr[4],
        p_adv_report->peer_addr.addr[3],
@@ -324,7 +324,9 @@ static uint32_t adv_report_parse(uint8_t type, const ble_data_t* p_advdata, ble_
 static void on_adv_report(ble_gap_evt_adv_report_t const *p_adv_report)
 {  
    print_address(p_adv_report);
-   log_printf("addr: %u, on_adv_report outer RSSI: %d \n",p_adv_report->peer_addr.addr, p_adv_report->rssi); 
+   
+   //log_printf("addr: %u, on_adv_report outer RSSI: %d \n",p_adv_report->peer_addr.addr, p_adv_report->rssi); 
+   log_printf("on_adv_report outer RSSI: %d \n", p_adv_report->rssi); 
 	 
    // Only handle non-response BLE packets from devices we know
    if (!p_adv_report->type.scan_response && addr_in_whitelist(&p_adv_report->peer_addr) && (memcmp(p_adv_report->peer_addr.addr, _empty_eui, sizeof(_empty_eui)) != 0))
@@ -441,10 +443,11 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
 	  {
 	  	int8_t rssi_value =     p_ble_evt->evt.gap_evt.params.rssi_changed.rssi;
 		uint8_t rssi_channel =  p_ble_evt->evt.gap_evt.params.rssi_changed.ch_index;
-		
+		//p_ble_evt->evt.gap_evt.conn_handle.ble_gap_addr_t 
+		//p_ble_evt->evt.gap_evt.params.connected.peer_addr
 		 //cannot get correct peer address here because the params in evt.gap_evt is a union... see https://devzone.nordicsemi.com/f/nordic-q-a/38445/getting-the-rssi-value-on-peripheral-side-of-a-phone-connected-to-the-peripheral
 		//log_printf("RSSI changed, new: %d, channel: %d %02x:%02x:%02x:%02x:%02x:%02x \n",rssi_value, rssi_channel, p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[5],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[4],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[3],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[2],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[1],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[0]); 
-		log_printf("RSSI changed, new: %d, channel: %d \n",rssi_value, rssi_channel);
+		log_printf("RSSI changed, new: %d, channel: %d, time: %lu \n",rssi_value, rssi_channel, rtc_get_current_time());
 		
 		
 	  }
@@ -541,6 +544,7 @@ void ble_stop_advertising(void)
 
 void ble_start_scanning(void)
 {
+   log_printf("DEBUG: BLE START SCANNING called\n");
    // Start scanning for devices if not currently connected to a device
    if (!_outgoing_ble_connection_active)
    {
@@ -559,7 +563,7 @@ void ble_start_scanning(void)
 
 void ble_stop_scanning(void)
 {
-   log_printf("BLE STOP SCANNING called\n");
+   log_printf("DEBUG: BLE STOP SCANNING called\n");
    	
    sd_ble_gap_scan_stop();
    nrfx_atomic_flag_clear(_ble_scanning_flag);

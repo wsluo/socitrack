@@ -302,6 +302,13 @@ static void watchdog_handler(void *p_context)     // This function is triggered 
       while (true);
 }
 
+static uint32_t get_int(uint8_t *data);
+static uint32_t get_int(uint8_t *data){
+	uint32_t val = 0;
+	memcpy(&val, data, 4);
+	return val;
+}
+
 static void squarepoint_data_handler(uint8_t *data, uint32_t len)
 {
    // Handle the incoming message
@@ -320,9 +327,33 @@ static void squarepoint_data_handler(uint8_t *data, uint32_t len)
          for (uint8_t i = 0; i < num_ranges; ++i)
             if (memcmp(data + packet_overhead + (i * APP_LOG_RANGE_LENGTH), ble_get_empty_eui(), SQUAREPOINT_EUI_LEN))
             {
-               uint8_t offset = packet_overhead + (i * APP_LOG_RANGE_LENGTH);
+               
+			   
+			   /* original
+			   uint8_t offset = packet_overhead + (i * APP_LOG_RANGE_LENGTH);	
                memcpy(&range, data + offset + SQUAREPOINT_EUI_LEN, sizeof(range));
                log_printf("INFO:     Device %02X with millimeter range %lu\n", data[offset + 0], range);
+			   */
+				
+			   uint16_t offset = packet_overhead + (i * APP_LOG_RANGE_LENGTH);
+			   log_printf("INFO:     Device %02X with millimeter range ",data[offset + 0]);
+			   //uint16_t base = offset + SQUAREPOINT_EUI_LEN;
+			   
+			   //uint32_t buffer[200];
+			   //snprintf (buffer, 200, "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu", get_int(base),get_int(base+4),get_int(base+8),get_int(base+12),get_int(base+16),get_int(base+20),get_int(base+240,get_intbase+28),get_int(base+32),get_int(base+36));
+			   
+			   //snprintf (buffer, 200, "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu", *(uint32_t*)(base+40),*(uint32_t*)(base+44),*(uint32_t*)(base+48),*(uint32_t*)(base+52),*(uint32_t*)(base+56),*(uint32_t*)(base+60),*(uint32_t*)(base+64),*(uint32_t*)(base+68),*(uint32_t*)(base+72),*(uint32_t*)(base+76));
+			   //log_printf(buffer);
+			   //snprintf (buffer, 200, "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu", data[base+80],data[base+84],data[base+88],data[base+92],data[base+96],data[base+100],data[base+104],data[base+108],data[base+112],data[base+116]);
+			   
+			   for (uint8_t rx_index = 0; rx_index < SQUAREPOINT_RX_COUNT; ++rx_index){
+				   memcpy(&range, data + offset + SQUAREPOINT_EUI_LEN + rx_index * sizeof(range), sizeof(range));
+				   log_printf("%lu ", range);
+				   if (rx_index % 10 == 0){
+					   log_printf("\n");
+				   }
+			   }
+			   log_printf("\n");
             }
 
          // Copy the ranging data to the ranging buffer
