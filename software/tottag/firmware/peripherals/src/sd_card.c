@@ -272,6 +272,7 @@ bool sd_card_flush(void)
    }
 
    // Reset the buffer and turn off power to the SD card
+   printf("INFO: SD card flushed!\n");
    _sd_card_buffer_length = 0;
    sd_card_power_off();
    return true;
@@ -456,8 +457,10 @@ void sd_card_log_ranges(const uint8_t *data, uint16_t length)
    }
 
    // Get timestamp of ranges
-   uint32_t current_timestamp = 0, range = 0;
+   uint32_t current_timestamp = 0,  tick = 0;
+   int32_t range = 0;
    memcpy(&current_timestamp, data + offset_data + (num_ranges * APP_LOG_RANGE_LENGTH), sizeof(current_timestamp));
+   memcpy(&tick, data + offset_data + (num_ranges * APP_LOG_RANGE_LENGTH) + sizeof(current_timestamp), sizeof(tick));
 
    // Log all ranges
    memset(_log_ranges_buf, 0, sizeof(_log_ranges_buf));
@@ -492,20 +495,24 @@ void sd_card_log_ranges(const uint8_t *data, uint16_t length)
 	  //write all raw data points (plus the median value, write first among all)
 	  for (uint8_t j=0; j<SQUAREPOINT_RX_COUNT; j++){
 		  memcpy(&range, data + offset_data + SQUAREPOINT_EUI_LEN + j * sizeof(range), sizeof(range));
-	      if (range > APP_LOG_OUT_OF_RANGE_VALUE){
+	      if (range > APP_LOG_OUT_OF_RANGE_VALUE || range< -1000 ){
 			  range = APP_LOG_OUT_OF_RANGE_VALUE;
 	      }
-		  sprintf(_log_ranges_buf + offset_buf + 29 + 7 * j, "%06lu", range);
 		  
-		  if (j!=(SQUAREPOINT_RX_COUNT-1)){
+		  sprintf(_log_ranges_buf + offset_buf + 29 + 7 * j, "%06d\t", range);
+		  
+		  /*if (j!=(SQUAREPOINT_RX_COUNT-1)){
 			  sprintf(_log_ranges_buf + offset_buf + 29 + 7 * j + 6, "\t");
 		  }
 		  else{
 			   sprintf(_log_ranges_buf + offset_buf + 29 + 7 * j + 6, "\n");  	
-		  }
+		  }*/   
 	  }
 	  
+	  //memcpy(&tick, data + offset_data + SQUAREPOINT_EUI_LEN + SQUAREPOINT_RX_COUNT * sizeof(range), sizeof(tick));
+	  sprintf(_log_ranges_buf + offset_buf + 29 + 7 * SQUAREPOINT_RX_COUNT, "%06lu\n", tick);
 	  
+	  	  
       // Update the data and buffer offsets
       offset_data += APP_LOG_RANGE_LENGTH;
       offset_buf += APP_LOG_BUFFER_LINE;
@@ -525,7 +532,7 @@ void sd_card_log_ranges(const uint8_t *data, uint16_t length)
 }
 
 
-void sd_card_log_RSSI(int8_t rssi, uint8_t channel,uint32_t current_time, bool flush){
+void sd_card_log_RSSI(int8_t rssi, uint8_t channel,uint32_t current_time,uint32_t current_time_raw, bool flush){
 	
     // Start a new log file if it is a new day
     if (_next_day_timestamp && (current_time >= _next_day_timestamp))
@@ -534,8 +541,14 @@ void sd_card_log_RSSI(int8_t rssi, uint8_t channel,uint32_t current_time, bool f
        sd_card_create_log(current_time, false);
     }
 	
-    uint16_t bytes_written = (uint16_t)snprintf(_sd_write_buf, sizeof(_sd_write_buf), "### RSSI: %hd, %hu, %lu\n", rssi, channel, current_time);
+    uint16_t bytes_written = (uint16_t)snprintf(_sd_write_buf, sizeof(_sd_write_buf), "### RSSI: %hd, %hu, %lu, %lu\n", rssi, channel, current_time, current_time_raw);
     sd_card_write(_sd_write_buf, bytes_written, flush);
+}
+
+void sd_card_log_updated_epoch(uint32_t epoch)
+{
+   uint16_t bytes_written = (uint16_t)snprintf(_sd_write_buf, sizeof(_sd_write_buf), "### NETWORK-UPDATED RTC TIME: %lu\n", epoch);
+   sd_card_write(_sd_write_buf, bytes_written, false);
 }
 
 

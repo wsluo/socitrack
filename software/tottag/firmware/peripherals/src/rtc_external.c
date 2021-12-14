@@ -25,9 +25,15 @@ static ab1815_alarm_callback *_interrupt_callback = NULL;
 static uint8_t _ab1815_read_write_buf[257] = { 0 };
 
 
+static const char _datetime[] = _DATETIME;  // the format is "Tue Jan  1 00:00:00 UTC 2000"
+
+static ab1815_time_t comp_time;
+
+
+
 // Helper functions ----------------------------------------------------------------------------------------------------
 
-#ifdef FORCE_RTC_RESET
+//#ifdef FORCE_RTC_RESET
 static int ab1815_num_init_retries = 0;
 static uint8_t ascii_to_i(char c) { return (c == ' ') ? 0 : (uint8_t)(c - '0'); }
 static uint8_t month_to_i(const char *c)
@@ -61,7 +67,7 @@ static uint8_t month_to_i(const char *c)
    else
       return 0;
 }
-#endif // #ifdef FORCE_RTC_RESET
+//#endif // #ifdef FORCE_RTC_RESET
 
 uint8_t ab1815_init(void)
 {
@@ -90,22 +96,21 @@ uint8_t ab1815_init(void)
 
 uint8_t ab1815_init_time(void)
 {
+    comp_time.hundredths = 0;
+    comp_time.seconds = ascii_to_i(_datetime[17]) * 10 + ascii_to_i(_datetime[18]);
+    comp_time.minutes = ascii_to_i(_datetime[14]) * 10 + ascii_to_i(_datetime[15]);
+    comp_time.hours = ascii_to_i(_datetime[11]) * 10 + ascii_to_i(_datetime[12]);
+
+    comp_time.date = ascii_to_i(_datetime[8]) * 10 + ascii_to_i(_datetime[9]);
+    comp_time.months = month_to_i(&_datetime[4]);
+    comp_time.years = ascii_to_i(_datetime[26]) * 10 + ascii_to_i(_datetime[27]);
+    comp_time.weekday = 0;  // default	
+	
 #ifdef FORCE_RTC_RESET
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdate-time"
-   const char _datetime[] = _DATETIME;  // the format is "Tue Jan  1 00:00:00 UTC 2000"
+   //const char _datetime[] = _DATETIME;  // the format is "Tue Jan  1 00:00:00 UTC 2000"
    printf("INFO: Forcing RTC reset to %s\n", _datetime);
-
-   ab1815_time_t comp_time;
-   comp_time.hundredths = 0;
-   comp_time.seconds = ascii_to_i(_datetime[17]) * 10 + ascii_to_i(_datetime[18]);
-   comp_time.minutes = ascii_to_i(_datetime[14]) * 10 + ascii_to_i(_datetime[15]);
-   comp_time.hours = ascii_to_i(_datetime[11]) * 10 + ascii_to_i(_datetime[12]);
-
-   comp_time.date = ascii_to_i(_datetime[8]) * 10 + ascii_to_i(_datetime[9]);
-   comp_time.months = month_to_i(&_datetime[4]);
-   comp_time.years = ascii_to_i(_datetime[26]) * 10 + ascii_to_i(_datetime[27]);
-   comp_time.weekday = 0;  // default
 
    return ab1815_set_time(comp_time);
 #pragma GCC diagnostic pop
@@ -584,13 +589,17 @@ uint8_t rtc_external_init(const nrf_drv_spi_t* spi_instance)
    success = (success && ab1815_init_time());
 
    // Set nRF time from the RTC
-   ab1815_time_t time = { 0 };
-   success = (success && ab1815_get_time(&time));
+   ab1815_time_t time = { 0 }; 
+   success = (success && ab1815_get_time(&time)); //read from AB1815_HUND
    if (success)
    {
       rtc_set_current_time(ab1815_to_unix(time).tv_sec);
       ab1815_printTime(time);
    }
+   
+   //set the nrf rtc anyway !if reset, will disrupt timestamps??? for device without rtc only
+   rtc_set_current_time(ab1815_to_unix(comp_time).tv_sec);
+   
 
    // De-initialize SPI communications
    nrf_drv_spi_uninit(_spi_instance);

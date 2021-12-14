@@ -10,7 +10,7 @@
 
 // User configurable debug definitions ---------------------------------------------------------------------------------
 
-#define DEVICE_FORCE_RESET_INTERVAL_SEC 3600
+#define DEVICE_FORCE_RESET_INTERVAL_SEC 18000
 #define STOP_BLE_AND_SQUAREPOINT_WHEN_CHARGING
 #define ENABLE_LOW_BATTERY_SOUNDS
 //#define ENABLE_LEDS
@@ -75,7 +75,7 @@
 #define MAXIMUM_VALID_TIMESTAMP                 2000000000
 
 // Storage / Buffers
-#define APP_BLE_BUFFER_LENGTH                   256
+#define APP_BLE_BUFFER_LENGTH                   (256 + 4) //to include the tick 
 #define APP_BLE_MAX_CHAR_LEN                    128
 #define APP_SDCARD_BUFFER_LENGTH                10240
 
@@ -85,7 +85,7 @@
 #define SQUAREPOINT_RX_COUNT                    (1 + 30) //created for receiving more data
 #define APP_LOG_RANGE_LENGTH                    (SQUAREPOINT_EUI_LEN + 4 * SQUAREPOINT_RX_COUNT )//(SQUAREPOINT_EUI_LEN + 4)
 
-#define APP_LOG_BUFFER_LINE                     (10 + 1 + 3*6 + 7* SQUAREPOINT_RX_COUNT )
+#define APP_LOG_BUFFER_LINE                     (10 + 1 + 3*6 + 7* SQUAREPOINT_RX_COUNT + 7)
 #define APP_LOG_BUFFER_LENGTH                   (10 * APP_LOG_BUFFER_LINE)
 
 #define APP_LOG_OUT_OF_RANGE_VALUE              999999

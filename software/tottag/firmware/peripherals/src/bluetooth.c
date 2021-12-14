@@ -61,6 +61,10 @@ static device_role_t _device_role = HYBRID;
 
 // Helper functions and prototypes -------------------------------------------------------------------------------------
 
+bool is_ble_connected();
+void ble_connect();
+
+
 static void nrf_qwr_error_handler(uint32_t nrf_error) { APP_ERROR_HANDLER(nrf_error); }
 static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context);
 static void on_adv_evt(ble_adv_evt_t ble_adv_evt);
@@ -323,14 +327,14 @@ static uint32_t adv_report_parse(uint8_t type, const ble_data_t* p_advdata, ble_
 
 static void on_adv_report(ble_gap_evt_adv_report_t const *p_adv_report)
 {  
-   print_address(p_adv_report);
    
-   //log_printf("addr: %u, on_adv_report outer RSSI: %d \n",p_adv_report->peer_addr.addr, p_adv_report->rssi); 
-   log_printf("on_adv_report outer RSSI: %d \n", p_adv_report->rssi); 
 	 
    // Only handle non-response BLE packets from devices we know
    if (!p_adv_report->type.scan_response && addr_in_whitelist(&p_adv_report->peer_addr) && (memcmp(p_adv_report->peer_addr.addr, _empty_eui, sizeof(_empty_eui)) != 0))
    {
+	  print_address(p_adv_report);
+	  log_printf("on_adv_report outer RSSI: %d, time:%lu \n", p_adv_report->rssi, rtc_get_current_time());  
+	   
       // Update the highest discovered EUI in the network
       ble_data_t advdata = { 0 };
       nrfx_err_t err_code = adv_report_parse(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &p_adv_report->data, &advdata);
@@ -397,7 +401,6 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 
 void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
 {
-   log_printf("BLE EVENT: %d \n",p_ble_evt->header.evt_id);	
 	
    switch (p_ble_evt->header.evt_id)
    {
@@ -413,7 +416,7 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
       }
       case BLE_GAP_EVT_CONNECTED:
       {
-		 log_printf("BLE CONNECTED!\n");
+		 log_printf("BLE EVENT: %d, INFO: BLE CONNECTED!\n",p_ble_evt->header.evt_id);
 		 
 		 //start rssi reporting
 		 APP_ERROR_CHECK(sd_ble_gap_rssi_start(p_ble_evt->evt.gap_evt.conn_handle,0,0));
@@ -433,7 +436,7 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
       case BLE_GAP_EVT_DISCONNECTED:
       {
 		  
-		 log_printf("ble disconnected!\n");
+		 log_printf("BLE EVENT: %d, INFO: BLE DISCONNECTED!\n",p_ble_evt->header.evt_id);
          _outgoing_ble_connection_active = 0;
          _carrier_ble_conn_handle = BLE_CONN_HANDLE_INVALID;
          break;
@@ -447,9 +450,11 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
 		//p_ble_evt->evt.gap_evt.params.connected.peer_addr
 		 //cannot get correct peer address here because the params in evt.gap_evt is a union... see https://devzone.nordicsemi.com/f/nordic-q-a/38445/getting-the-rssi-value-on-peripheral-side-of-a-phone-connected-to-the-peripheral
 		//log_printf("RSSI changed, new: %d, channel: %d %02x:%02x:%02x:%02x:%02x:%02x \n",rssi_value, rssi_channel, p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[5],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[4],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[3],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[2],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[1],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[0]); 
-		log_printf("RSSI changed, new: %d, channel: %d, time: %lu \n",rssi_value, rssi_channel, rtc_get_current_time());
+		uint32_t current_time = rtc_get_current_time();
+		uint32_t current_time_raw = rtc_get_current_time_raw();
+		log_printf("BLE EVENT: %d, RSSI changed, new: %d, channel: %d, time: %lu , tick: %lu \n",p_ble_evt->header.evt_id, rssi_value, rssi_channel, current_time , current_time_raw);
 		
-		sd_card_log_RSSI(rssi_value, rssi_channel, rtc_get_current_time(), false);
+		sd_card_log_RSSI(rssi_value, rssi_channel, current_time, current_time_raw, false);
 		
 	  }
       case BLE_GAP_EVT_ADV_REPORT:
@@ -484,6 +489,7 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
       }
       case BLE_GAP_EVT_TIMEOUT:
       {
+		 log_printf("BLE EVENT: %d, INFO: BLE GAP TIMEOUT!\n",p_ble_evt->header.evt_id);
          sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
          _outgoing_ble_connection_active = 0;
          _carrier_ble_conn_handle = BLE_CONN_HANDLE_INVALID;
@@ -491,6 +497,7 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
       }
       case BLE_GATTC_EVT_TIMEOUT:
       {
+		 log_printf("BLE EVENT: %d, INFO: BLE GATTC TIMEOUT!\n",p_ble_evt->header.evt_id); 
          APP_ERROR_CHECK(sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION));
          _outgoing_ble_connection_active = 0;
          _carrier_ble_conn_handle = BLE_CONN_HANDLE_INVALID;
@@ -498,6 +505,7 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
       }
       case BLE_GATTS_EVT_TIMEOUT:
       {
+		 log_printf("BLE EVENT: %d, INFO: BLE GATTS TIMEOUT!\n",p_ble_evt->header.evt_id);  
          APP_ERROR_CHECK(sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION));
          _outgoing_ble_connection_active = 0;
          _carrier_ble_conn_handle = BLE_CONN_HANDLE_INVALID;
@@ -624,8 +632,23 @@ void ble_second_has_elapsed(void)
    }
 }
 
+bool is_ble_connected(){
+	return _outgoing_ble_connection_active;
+}
+
+void ble_connect(){
+	if (!_outgoing_ble_connection_active){
+		_outgoing_ble_connection_active = 1;
+		if (sd_ble_gap_connect(&_networked_device_addr, &_scan_connect_params, &_connection_params, APP_BLE_CONN_CFG_TAG) != NRF_SUCCESS)
+			_outgoing_ble_connection_active = 0;
+		//nrfx_atomic_flag_clear(_ble_scanning_flag);
+    }
+	log_printf("DEBUG: connected? %s\n", _outgoing_ble_connection_active ? "already connected" : "not connected");
+}
+
 uint32_t ble_request_timestamp(void)
 {
+
    // Connect to a discovered device and request the current timestamp
    if (!_outgoing_ble_connection_active)
    {

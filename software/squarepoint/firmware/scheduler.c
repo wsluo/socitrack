@@ -441,7 +441,7 @@ static void receive_schedule(const schedule_packet_t* schedule, bool is_master_s
       }
 
       // Update the Unix epoch timestamp as long as it is within a year of the time we currently think it is
-      if ((schedule->epoch_time_unix > 1612810414) && ((_schedule_packet.epoch_time_unix < 1612810414) || (abs((int32_t)(schedule->epoch_time_unix - _schedule_packet.epoch_time_unix)) <= SECONDS_PER_YEAR)))
+      if ((schedule->epoch_time_unix > 1612810414) && ((schedule->epoch_time_unix < 1800000000) || (abs((int32_t)(schedule->epoch_time_unix - _schedule_packet.epoch_time_unix)) <= SECONDS_PER_YEAR)))
          _schedule_packet.epoch_time_unix = schedule->epoch_time_unix;
       else
       {

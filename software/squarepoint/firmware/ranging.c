@@ -179,9 +179,9 @@ uint8_t perform_ranging(uint8_t *ids_and_ranges, PROTOCOL_EUI_TYPE *expected_dev
                debug_msg("\n");
             }
          }
-
+		 /*
       // TODO: DELETE THIS
-      /*for (uint8_t i = 0; i < num_valid_distances; ++i)
+     for (uint8_t i = 0; i < num_valid_distances; ++i)
       {
          debug_msg("DEBUG: Calculated range [");
          debug_msg_uint(i);
