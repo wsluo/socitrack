@@ -87,10 +87,10 @@ static void hardware_init(void)
    uint32_t reset_reason = nrf_power_resetreas_get();
    if (reset_reason)
    {
-      printf("WARNING: Chip experienced a reset with reason %lu\n", reset_reason);
+      printf("### WARNING: Chip experienced a reset with reason %lu\n", reset_reason);
       nrf_power_resetreas_clear(0xFFFFFFFF);
    }
-   printf("INFO: Initializing nRF...\n");
+   //printf("INFO: Initializing nRF...\n");
 
    // Initialize the application state and essential hardware components
    app_init();
@@ -118,14 +118,14 @@ static void hardware_init(void)
 
    // Initialize SPI buses
    spi_init();
-   printf("INFO: Initialized critical hardware and software services\n");
+   //printf("INFO: Initialized critical hardware and software services\n");
 
    // Enable the external Real-Time Clock and ensure that the fetched timestamp is valid
    rtc_external_init(&_rtc_sd_spi_instance);
    uint32_t current_timestamp = rtc_get_current_time(), num_retries = 3;
    while (--num_retries && ((current_timestamp < MINIMUM_VALID_TIMESTAMP) || (current_timestamp > MAXIMUM_VALID_TIMESTAMP)))
    {
-      printf("ERROR: RTC chip returned an impossible Unix timestamp: %lu\n", current_timestamp);
+      printf("### ERROR: RTC chip returned an impossible Unix timestamp: %lu\n", current_timestamp);
       rtc_external_init(&_rtc_sd_spi_instance);
       buzzer_indicate_invalid_rtc_time();
       nrf_delay_ms(2000);
@@ -145,22 +145,22 @@ static void hardware_init(void)
       nrf_delay_ms(5000);
    }
    sd_card_create_log(nrfx_atomic_flag_fetch(&_app_flags.rtc_time_valid) ? rtc_get_current_time() : 0, true);
-   printf("INFO: Initialized supplementary hardware and software services\n");
+   //printf("INFO: Initialized supplementary hardware and software services\n");
 
    // Initialize the SquarePoint module
    uint32_t repeat_failure = 0;
    while (nrfx_atomic_flag_fetch(&_app_flags.squarepoint_needs_init))
    {
-      log_printf("INFO: Connecting to the SquarePoint module...\n");
+      log_printf("### INFO: Connecting to the SquarePoint module...\n");
       squarepoint_wakeup_module();
       if (squarepoint_init(&_app_flags.squarepoint_data_received, squarepoint_data_handler, ble_get_eui()) == NRFX_SUCCESS)
       {
-         log_printf("INFO: SquarePoint module connection successful\n");
+         log_printf("### INFO: SquarePoint module connection successful\n");
          nrfx_atomic_flag_clear(&_app_flags.squarepoint_needs_init);
       }
       else
       {
-         log_printf("ERROR: SquarePoint module connection unsuccessful!\n");
+         log_printf("### ERROR: SquarePoint module connection unsuccessful!\n");
          if ((++repeat_failure % 100) == 0)
             buzzer_indicate_error();
          nrf_delay_ms(50);
@@ -185,7 +185,7 @@ static void update_leds(uint32_t network_discovered)
 static nrfx_err_t start_squarepoint(void)
 {
    // Wake up the SquarePoint module
-   log_printf("INFO: Starting the SquarePoint module...\n");
+   log_printf("### INFO: Starting the SquarePoint module...\n");
    squarepoint_wakeup_module();
 
    // Initialize the SquarePoint module and communications
@@ -197,7 +197,7 @@ static nrfx_err_t start_squarepoint(void)
    }
    else
    {
-      log_printf("ERROR: Unable to communicate with the SquarePoint module\n");
+      log_printf("### ERROR: Unable to communicate with the SquarePoint module\n");
       nrfx_atomic_flag_set(&_app_flags.squarepoint_needs_init);
       return err_code;
    }
@@ -213,14 +213,14 @@ static nrfx_err_t start_squarepoint(void)
    err_code = squarepoint_start_application(rtc_get_current_time(), ble_get_device_role(), scheduler_role);
    if (err_code != NRFX_SUCCESS)
    {
-      log_printf("ERROR: Failed to start the SquarePoint ranging app!\n");
+      log_printf("### ERROR: Failed to start the SquarePoint ranging app!\n");
       return err_code;
    }
    else
    {
       // Update the application state
       ble_stop_scanning();
-      log_printf("INFO: SquarePoint module successfully started!\n");
+      log_printf("### INFO: SquarePoint module successfully started!\n");
       nrfx_atomic_flag_set(&_app_flags.squarepoint_running);
       nrfx_atomic_flag_clear(&_app_flags.bluetooth_single_scanning);
       nrfx_atomic_u32_store(&_app_flags.squarepoint_timeout_counter, 0);
@@ -233,7 +233,7 @@ static nrfx_err_t start_squarepoint(void)
 static nrfx_err_t start_squarepoint_calibration(void)
 {
    // Wake up the SquarePoint module
-   printf("INFO: Starting the SquarePoint module in calibration mode...\n");
+   printf("### INFO: Starting the SquarePoint module in calibration mode...\n");
    squarepoint_wakeup_module();
 
    // Initialize the SquarePoint module and communications
@@ -245,7 +245,7 @@ static nrfx_err_t start_squarepoint_calibration(void)
    }
    else
    {
-      printf("ERROR: Unable to communicate with the SquarePoint module\n");
+      printf("### ERROR: Unable to communicate with the SquarePoint module\n");
       nrfx_atomic_flag_set(&_app_flags.squarepoint_needs_init);
       return err_code;
    }
@@ -254,13 +254,13 @@ static nrfx_err_t start_squarepoint_calibration(void)
    err_code = squarepoint_start_calibration((uint8_t)nrfx_atomic_u32_fetch(&_app_flags.calibration_index));
    if (err_code != NRFX_SUCCESS)
    {
-      printf("ERROR: Failed to start the SquarePoint calibration app!\n");
+      printf("### ERROR: Failed to start the SquarePoint calibration app!\n");
       return err_code;
    }
    else
    {
       // Update the application state
-      printf("INFO: SquarePoint calibration successfully started!\n");
+      printf("### INFO: SquarePoint calibration successfully started!\n");
       nrfx_atomic_flag_set(&_app_flags.squarepoint_running);
       nrfx_atomic_u32_store(&_app_flags.squarepoint_timeout_counter, 0);
    }
@@ -313,21 +313,37 @@ static uint32_t get_int(uint8_t *data){
 static void squarepoint_data_handler(uint8_t *data, uint32_t len)
 {
    // Handle the incoming message
-   log_printf("INFO: SquarePoint module sent ");
+   //log_printf("### INFO: SquarePoint module sent ");
    switch (data[0])
    {
       case SQUAREPOINT_INCOMING_RANGES:
       {
          // Display the callback reason
-         log_printf("RANGES, included number of ranges: %i\n", data[1]);
+         //log_printf("RANGES, included number of ranges: %i\n", data[1]);
          const uint8_t packet_overhead = 2 + SQUAREPOINT_EUI_LEN, num_ranges = data[1];
          nrfx_atomic_flag_set(&_app_flags.squarepoint_running);
          int32_t range = 0;
 		 uint32_t epoch = 0;
 		 
 		 uint32_t current_tick=rtc_get_current_time_raw();
-		 log_printf("DEBUG: Ticks: %lu, %lu, %d \n", current_tick, current_tick-last_tick, is_ble_connected());
+		 //log_printf("### DEBUG: Ticks: %lu, %lu, %d \n", current_tick, current_tick-last_tick, is_ble_connected());
 		 last_tick = current_tick;
+		 
+		 
+         // Update the application epoch
+         memcpy(&epoch, data + packet_overhead + (num_ranges * APP_LOG_RANGE_LENGTH), sizeof(epoch));
+         if ((epoch > MINIMUM_VALID_TIMESTAMP) && (epoch < MAXIMUM_VALID_TIMESTAMP))
+         {
+            rtc_set_current_time(epoch);
+            log_printf("%lu ", epoch);
+         }
+         else
+         {
+            epoch = rtc_get_current_time();
+            memcpy(data + packet_overhead + (num_ranges * APP_LOG_RANGE_LENGTH), &epoch, sizeof(epoch));
+         }
+		 
+		 
 
          // Output the received ranging data
          for (uint8_t i = 0; i < num_ranges; ++i)
@@ -342,8 +358,7 @@ static void squarepoint_data_handler(uint8_t *data, uint32_t len)
 			   */
 				
 			   uint16_t offset = packet_overhead + (i * APP_LOG_RANGE_LENGTH); //APP_LOG_RANGE_LENGTH = len(eui) + len of all data in a single result
-			   log_printf("INFO:     Device %02X with millimeter range ",data[offset + 0]);
-
+			   log_printf("c0:98:e5:42:00:%02x ",data[offset + 0]);
 			   
 			   for (uint8_t rx_index = 0; rx_index < SQUAREPOINT_RX_COUNT; ++rx_index){
 				   memcpy(&range, data + offset + SQUAREPOINT_EUI_LEN + rx_index * sizeof(range), sizeof(range));
@@ -352,7 +367,7 @@ static void squarepoint_data_handler(uint8_t *data, uint32_t len)
 					   log_printf("\n");
 				   }
 			   }
-			   log_printf("\n");
+			   //log_printf("\n");
             }
 
          // Copy the ranging data to the ranging buffer
@@ -360,24 +375,13 @@ static void squarepoint_data_handler(uint8_t *data, uint32_t len)
          memcpy(_range_buffer, data + 1, _range_buffer_length - 4); //copy everything in incoming data
 		 memcpy(_range_buffer + _range_buffer_length -4 , &current_tick, sizeof(current_tick)); //copy tick
 
-         // Update the application epoch
-         memcpy(&epoch, data + packet_overhead + (num_ranges * APP_LOG_RANGE_LENGTH), sizeof(epoch));
-         if ((epoch > MINIMUM_VALID_TIMESTAMP) && (epoch < MAXIMUM_VALID_TIMESTAMP))
-         {
-            rtc_set_current_time(epoch);
-            log_printf("INFO:     Updated current epoch time: %lu\n", epoch);
-         }
-         else
-         {
-            epoch = rtc_get_current_time();
-            memcpy(data + packet_overhead + (num_ranges * APP_LOG_RANGE_LENGTH), &epoch, sizeof(epoch));
-         }
+
 
          // Update the scheduler EUI
          if (ble_set_scheduler_eui(data + 2, SQUAREPOINT_EUI_LEN))
          {
             // Scheduler EUI changed so there must have been a network conflict
-            log_printf("WARNING: Scheduler EUI changed unexpectedly due to a network conflict...restarting\n");
+            log_printf("### WARNING: Scheduler EUI changed unexpectedly due to a network conflict...restarting\n");
             nrfx_atomic_u32_store(&_app_flags.squarepoint_timeout_counter, APP_RUNNING_RESPONSE_TIMEOUT_SEC + 10);
          }
          else       // Trigger SD log file storage from the main loop
@@ -402,7 +406,7 @@ static void squarepoint_data_handler(uint8_t *data, uint32_t len)
       case SQUAREPOINT_INCOMING_STOPPED:
       {
          // Acknowledge the information message
-         log_printf("STOPPED, setting module to STOPPED\n");
+         log_printf("### STOPPED, setting module to STOPPED\n");
          squarepoint_ack();
 
          // Update the app state
@@ -414,27 +418,27 @@ static void squarepoint_data_handler(uint8_t *data, uint32_t len)
       case SQUAREPOINT_INCOMING_WAKEUP:
       {
          // Start the wakeup timer
-         log_printf("WAKEUP, setting module wake-up timer\n");
+         log_printf("### WAKEUP, setting module wake-up timer\n");
          uint16_t wakeup_delay = 4 * (uint16_t)data[1];
          if (wakeup_timer_start(wakeup_delay) != NRF_SUCCESS)
-            log_printf("ERROR: Unable to start module wake-up timer!!\n");
+            log_printf("### ERROR: Unable to start module wake-up timer!!\n");
          break;
       }
       case SQUAREPOINT_INCOMING_REQUEST_TIME:
       {
-         log_printf("REQUEST_TIME, responding with current timestamp\n");
+         log_printf("### REQUEST_TIME, responding with current timestamp\n");
          nrfx_atomic_flag_set(&_app_flags.squarepoint_time_epoch_requested);
          nrfx_atomic_flag_set(&_app_flags.squarepoint_running);
          break;
       }
       case SQUAREPOINT_INCOMING_PING:
       {
-         log_printf("PING, responding with keep-alive acknowledgment\n");
+         log_printf("### PING, responding with keep-alive acknowledgment\n");
          squarepoint_ack();
          break;
       }
       default:
-         log_printf("UNKNOWN, unknown interrupt reason!\n");
+         log_printf("### UNKNOWN, unknown interrupt reason!\n");
          break;
    }
 }
@@ -516,9 +520,9 @@ int main(void)
       if (nrfx_atomic_flag_clear_fetch(&_app_flags.squarepoint_time_epoch_requested))
       {
          uint32_t current_time = rtc_get_current_time();
-         log_printf("INFO: Sending timestamp %lu to SquarePoint\n", current_time);
+         log_printf("### INFO: Sending timestamp %lu to SquarePoint\n", current_time);
          if (squarepoint_set_time(current_time) != NRFX_SUCCESS)
-            log_printf("ERROR: Failed to send current timestamp to the SquarePoint module!\n");
+            log_printf("### ERROR: Failed to send current timestamp to the SquarePoint module!\n");
       }
 
       // Check on current battery voltage levels
@@ -527,13 +531,13 @@ int main(void)
          uint16_t batt_mv = battery_monitor_get_level_mV();
          if (batt_mv <= BATTERY_VOLTAGE_CRITICAL)
          {
-            log_printf("WARNING: Battery voltage is getting critically low @ %hu mV!\n", batt_mv);
+            log_printf("### WARNING: Battery voltage is getting critically low @ %hu mV!\n", batt_mv);
             nrfx_atomic_u32_store(&_app_flags.battery_check_counter, (APP_BATTERY_CHECK_TIMEOUT_SEC < 60) ? 0 : (APP_BATTERY_CHECK_TIMEOUT_SEC - 60));
             buzzer_indicate_low_battery();
          }
          else
          {
-            log_printf("INFO: Battery voltage currently %hu mV\n", batt_mv);
+            log_printf("### INFO: Battery voltage currently %hu mV\n", batt_mv);
             nrfx_atomic_u32_store(&_app_flags.battery_check_counter, 0);
          }
          sd_card_log_battery(batt_mv, rtc_get_current_time(), !nrfx_atomic_flag_fetch(&_app_flags.squarepoint_running));
@@ -572,12 +576,12 @@ int main(void)
 		 }
          else if ((current_timestamp = ble_request_timestamp()) > 0)
          {
-            log_printf("INFO: Setting timestamp to the network response: %lu\n", current_timestamp);
+            log_printf("### INFO: Setting timestamp to the network response: %lu\n", current_timestamp);
             sd_card_log_updated_epoch(current_timestamp);
             sd_card_create_log(current_timestamp, false);
             nrfx_atomic_flag_set(&_app_flags.rtc_time_valid);
             ab1815_set_timestamp(current_timestamp);
-            log_printf("INFO: Setting timestamp to the network response: %lu\n", current_timestamp);
+            log_printf("### INFO: Setting timestamp to the network response: %lu\n", current_timestamp);
          }
       }
       else if (!app_enabled && nrfx_atomic_flag_fetch(&_app_flags.squarepoint_running))
@@ -620,7 +624,7 @@ int main(void)
             (nrfx_atomic_u32_fetch(&_app_flags.squarepoint_timeout_counter) > APP_RUNNING_RESPONSE_TIMEOUT_SEC))
       {
          // Update the app state and reset the SquarePoint module
-         log_printf("INFO: SquarePoint communications appear to be down...restarting\n");
+         log_printf("### INFO: SquarePoint communications appear to be down...restarting\n");
          nrfx_atomic_flag_clear(&_app_flags.squarepoint_running);
          ble_clear_scheduler_eui();
          squarepoint_stop();

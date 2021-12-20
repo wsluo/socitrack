@@ -86,7 +86,7 @@ static void squarepoint_interrupt_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_pola
        (nrfx_twi_xfer(&_twi_instance, &_rx_length_description, NRFX_TWI_FLAG_NO_XFER_EVT_HANDLER) != NRFX_SUCCESS) ||
        !_twi_rx_length || (_twi_rx_length == 0xFF))
    {
-      log_printf("ERROR: Failed reading SquarePoint packet length\n");
+      log_printf("### ERROR: Failed reading SquarePoint packet length\n");
       return;
    }
 
@@ -97,7 +97,7 @@ static void squarepoint_interrupt_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_pola
        (nrfx_twi_xfer(&_twi_instance, &_rx_data_description, NRFX_TWI_FLAG_NO_XFER_EVT_HANDLER) == NRFX_SUCCESS))
       nrfx_atomic_flag_set(_squarepoint_interrupt_thrown);
    else
-      log_printf("ERROR: Failed reading SquarePoint packet of length %i\n", _twi_rx_length);
+      //log_printf("### ERROR: Failed reading SquarePoint packet of length %i\n", _twi_rx_length);
 }
 
 static nrfx_err_t twi_hw_init(void)
@@ -183,7 +183,7 @@ nrfx_err_t squarepoint_init(nrfx_atomic_flag_t* incoming_data_flag, squarepoint_
    }
    if (id != SQUAREPOINT_ID)
    {
-      log_printf("ERROR: SquarePoint module is not reporting the expected ID [Expected = %uh Reported = %uh]\n", SQUAREPOINT_ID, id);
+      log_printf("### ERROR: SquarePoint module is not reporting the expected ID [Expected = %uh Reported = %uh]\n", SQUAREPOINT_ID, id);
       return NRFX_ERROR_INVALID_STATE;
    }
    return NRFX_SUCCESS;
@@ -192,7 +192,7 @@ nrfx_err_t squarepoint_init(nrfx_atomic_flag_t* incoming_data_flag, squarepoint_
 nrfx_err_t squarepoint_start_application(uint32_t current_time, uint8_t device_role, uint8_t scheduler_role)
 {
    // Send an outgoing command requesting that the SquarePoint module start
-   log_printf("INFO: Starting SquarePoint module as %s with timestamp %lu\n", (scheduler_role == SCHEDULER) ? "SCHEDULER" : "PARTICIPANT", current_time);
+   log_printf("### INFO: Starting SquarePoint module as %s with timestamp %lu\n", (scheduler_role == SCHEDULER) ? "SCHEDULER" : "PARTICIPANT", current_time);
    _twi_rx_buf[0] = SQUAREPOINT_CMD_START;
    _twi_rx_buf[1] = device_role | (scheduler_role << 3) | (SQUAREPOINT_RUNTIME_MODE_STANDARD << 6);
    memcpy(_twi_rx_buf + 2, &current_time, sizeof(current_time));

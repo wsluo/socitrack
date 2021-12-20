@@ -86,7 +86,7 @@ static uint8_t ascii_to_i(uint8_t number)
 }
 
 static void print_address(const ble_gap_evt_adv_report_t* p_adv_report) {
-    log_printf("addr: %02x:%02x:%02x:%02x:%02x:%02x \n",
+    log_printf("### addr: %02x:%02x:%02x:%02x:%02x:%02x \n",
        p_adv_report->peer_addr.addr[5],
        p_adv_report->peer_addr.addr[4],
        p_adv_report->peer_addr.addr[3],
@@ -119,7 +119,7 @@ static void gap_params_init(void)
    ble_gap_addr_t gap_addr = { .addr_type = BLE_GAP_ADDR_TYPE_PUBLIC };
    memcpy(_carrier_ble_address, (uint8_t*)DEVICE_ID_MEMORY, BLE_GAP_ADDR_LEN);
    APP_ERROR_CHECK((_carrier_ble_address[5] != 0xc0) || (_carrier_ble_address[4] != 0x98));
-   printf("INFO: Bluetooth address: %02x:%02x:%02x:%02x:%02x:%02x\n", _carrier_ble_address[5], _carrier_ble_address[4], _carrier_ble_address[3], _carrier_ble_address[2], _carrier_ble_address[1], _carrier_ble_address[0]);
+   printf("### INFO: Bluetooth address: %02x:%02x:%02x:%02x:%02x:%02x\n", _carrier_ble_address[5], _carrier_ble_address[4], _carrier_ble_address[3], _carrier_ble_address[2], _carrier_ble_address[1], _carrier_ble_address[0]);
    memcpy(gap_addr.addr, _carrier_ble_address, BLE_GAP_ADDR_LEN);
    memcpy(_scratch_eui, _carrier_ble_address, sizeof(_scratch_eui));
    APP_ERROR_CHECK(sd_ble_gap_addr_set(&gap_addr));
@@ -292,7 +292,7 @@ static uint8_t on_scheduler_eui(const uint8_t* scheduler_eui, bool force_update)
    if ((memcmp(scheduler_eui, _scheduler_eui, sizeof(_scheduler_eui)) == 0) || (!force_update && (memcmp(scheduler_eui, _empty_eui, sizeof(_empty_eui)) == 0)))
       return 0;
    uint8_t switched_euis = memcmp(_scheduler_eui, _empty_eui, sizeof(_empty_eui));
-   log_printf("INFO: Switched Scheduler EUI from %02x:%02x:%02x:%02x:%02x:%02x to %02x:%02x:%02x:%02x:%02x:%02x\n",
+   log_printf("### INFO: Switched Scheduler EUI from %02x:%02x:%02x:%02x:%02x:%02x to %02x:%02x:%02x:%02x:%02x:%02x\n",
          _scheduler_eui[5], _scheduler_eui[4], _scheduler_eui[3], _scheduler_eui[2], _scheduler_eui[1], _scheduler_eui[0],
          scheduler_eui[5], scheduler_eui[4], scheduler_eui[3], scheduler_eui[2], scheduler_eui[1], scheduler_eui[0]);
    memcpy(_scheduler_eui, scheduler_eui, sizeof(_scheduler_eui));
@@ -333,7 +333,7 @@ static void on_adv_report(ble_gap_evt_adv_report_t const *p_adv_report)
    if (!p_adv_report->type.scan_response && addr_in_whitelist(&p_adv_report->peer_addr) && (memcmp(p_adv_report->peer_addr.addr, _empty_eui, sizeof(_empty_eui)) != 0))
    {
 	  print_address(p_adv_report);
-	  log_printf("on_adv_report outer RSSI: %d, time:%lu \n", p_adv_report->rssi, rtc_get_current_time());  
+	  log_printf("### on_adv_report outer RSSI: %d, time:%lu \n", p_adv_report->rssi, rtc_get_current_time());  
 	   
       // Update the highest discovered EUI in the network
       ble_data_t advdata = { 0 };
@@ -342,7 +342,7 @@ static void on_adv_report(ble_gap_evt_adv_report_t const *p_adv_report)
       {
          memcpy(&_networked_device_addr, &p_adv_report->peer_addr, sizeof(_networked_device_addr));
          memcpy(_highest_discovered_eui, p_adv_report->peer_addr.addr, sizeof(_highest_discovered_eui));
-         log_printf("INFO: Discovered new device: %02x:%02x:%02x:%02x:%02x:%02x\n", p_adv_report->peer_addr.addr[5], p_adv_report->peer_addr.addr[4], p_adv_report->peer_addr.addr[3], p_adv_report->peer_addr.addr[2], p_adv_report->peer_addr.addr[1], p_adv_report->peer_addr.addr[0]);
+         log_printf("### INFO: Discovered new device: %02x:%02x:%02x:%02x:%02x:%02x\n", p_adv_report->peer_addr.addr[5], p_adv_report->peer_addr.addr[4], p_adv_report->peer_addr.addr[3], p_adv_report->peer_addr.addr[2], p_adv_report->peer_addr.addr[1], p_adv_report->peer_addr.addr[0]);
       }
 
       // Update the scheduler EUI
@@ -354,7 +354,7 @@ static void on_adv_report(ble_gap_evt_adv_report_t const *p_adv_report)
       if (nrfx_atomic_u32_fetch_store(&_time_since_last_network_discovery, 0) >= BLE_MISSING_NETWORK_TRANSITION1_TIMEOUT)
       {
          // Reset the BLE scanning interval and window to their active default values
-         log_printf("INFO: BLE scanning window and interval have been reset to their default values\n");
+         log_printf("### INFO: BLE scanning window and interval have been reset to their default values\n");
          _scan_params.interval = APP_SCAN_INTERVAL;
          _scan_params.window = APP_SCAN_WINDOW;
          sd_ble_gap_scan_stop();
@@ -381,13 +381,13 @@ static void on_ble_write(const ble_evt_t *p_ble_evt)
    if (p_evt_write->handle == carrier_ble_char_calibration_handle.value_handle)
    {
       // Start device calibration
-      log_printf("INFO: Received CALIBRATION evt: %s, length %hu\n", (const char*)p_evt_write->data, p_evt_write->len);
+      log_printf("### INFO: Received CALIBRATION evt: %s, length %hu\n", (const char*)p_evt_write->data, p_evt_write->len);
       const uint8_t expected_response_calib_offset = 13;
       uint8_t response = ascii_to_i(p_evt_write->data[expected_response_calib_offset]);
       nrfx_atomic_u32_store(_calibration_index, response);
   }
    else
-      log_printf("ERROR: Received unknown BLE event handle: %hu\n", p_evt_write->handle);
+      log_printf("### ERROR: Received unknown BLE event handle: %hu\n", p_evt_write->handle);
 }
 
 static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
@@ -416,7 +416,7 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
       }
       case BLE_GAP_EVT_CONNECTED:
       {
-		 log_printf("BLE EVENT: %d, INFO: BLE CONNECTED!\n",p_ble_evt->header.evt_id);
+		 log_printf("### BLE EVENT: %d, INFO: BLE CONNECTED!\n",p_ble_evt->header.evt_id);
 		 
 		 //start rssi reporting
 		 APP_ERROR_CHECK(sd_ble_gap_rssi_start(p_ble_evt->evt.gap_evt.conn_handle,0,0));
@@ -436,7 +436,7 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
       case BLE_GAP_EVT_DISCONNECTED:
       {
 		  
-		 log_printf("BLE EVENT: %d, INFO: BLE DISCONNECTED!\n",p_ble_evt->header.evt_id);
+		 log_printf("### BLE EVENT: %d, INFO: BLE DISCONNECTED!\n",p_ble_evt->header.evt_id);
          _outgoing_ble_connection_active = 0;
          _carrier_ble_conn_handle = BLE_CONN_HANDLE_INVALID;
          break;
@@ -452,7 +452,7 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
 		//log_printf("RSSI changed, new: %d, channel: %d %02x:%02x:%02x:%02x:%02x:%02x \n",rssi_value, rssi_channel, p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[5],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[4],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[3],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[2],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[1],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[0]); 
 		uint32_t current_time = rtc_get_current_time();
 		uint32_t current_time_raw = rtc_get_current_time_raw();
-		log_printf("BLE EVENT: %d, RSSI changed, new: %d, channel: %d, time: %lu , tick: %lu \n",p_ble_evt->header.evt_id, rssi_value, rssi_channel, current_time , current_time_raw);
+		log_printf("### RSSI: %d, %d, %lu ,%lu \n", rssi_value, rssi_channel, current_time , current_time_raw);
 		
 		sd_card_log_RSSI(rssi_value, rssi_channel, current_time, current_time_raw, false);
 		
@@ -489,7 +489,7 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
       }
       case BLE_GAP_EVT_TIMEOUT:
       {
-		 log_printf("BLE EVENT: %d, INFO: BLE GAP TIMEOUT!\n",p_ble_evt->header.evt_id);
+		 log_printf("### BLE EVENT: %d, INFO: BLE GAP TIMEOUT!\n",p_ble_evt->header.evt_id);
          sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
          _outgoing_ble_connection_active = 0;
          _carrier_ble_conn_handle = BLE_CONN_HANDLE_INVALID;
@@ -497,7 +497,7 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
       }
       case BLE_GATTC_EVT_TIMEOUT:
       {
-		 log_printf("BLE EVENT: %d, INFO: BLE GATTC TIMEOUT!\n",p_ble_evt->header.evt_id); 
+		 log_printf("### BLE EVENT: %d, INFO: BLE GATTC TIMEOUT!\n",p_ble_evt->header.evt_id); 
          APP_ERROR_CHECK(sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION));
          _outgoing_ble_connection_active = 0;
          _carrier_ble_conn_handle = BLE_CONN_HANDLE_INVALID;
@@ -505,7 +505,7 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
       }
       case BLE_GATTS_EVT_TIMEOUT:
       {
-		 log_printf("BLE EVENT: %d, INFO: BLE GATTS TIMEOUT!\n",p_ble_evt->header.evt_id);  
+		 log_printf("### BLE EVENT: %d, INFO: BLE GATTS TIMEOUT!\n",p_ble_evt->header.evt_id);  
          APP_ERROR_CHECK(sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION));
          _outgoing_ble_connection_active = 0;
          _carrier_ble_conn_handle = BLE_CONN_HANDLE_INVALID;
@@ -553,7 +553,7 @@ void ble_stop_advertising(void)
 
 void ble_start_scanning(void)
 {
-   log_printf("DEBUG: BLE START SCANNING called\n");
+   log_printf("### DEBUG: BLE START SCANNING called\n");
    // Start scanning for devices if not currently connected to a device
    if (!_outgoing_ble_connection_active)
    {
@@ -564,7 +564,7 @@ void ble_start_scanning(void)
          nrfx_atomic_flag_set(_ble_scanning_flag);
       else
       {
-         log_printf("ERROR: Unable to start scanning for BLE advertisements\n");
+         log_printf("### ERROR: Unable to start scanning for BLE advertisements\n");
          nrfx_atomic_flag_clear(_ble_scanning_flag);
       }
    }
@@ -572,7 +572,7 @@ void ble_start_scanning(void)
 
 void ble_stop_scanning(void)
 {
-   log_printf("DEBUG: BLE STOP SCANNING called\n");
+   log_printf("### DEBUG: BLE STOP SCANNING called\n");
    	
    sd_ble_gap_scan_stop();
    nrfx_atomic_flag_clear(_ble_scanning_flag);
@@ -618,12 +618,12 @@ void ble_second_has_elapsed(void)
    {
       // Update the scanning interval and window if a transition point has been reached
       case BLE_MISSING_NETWORK_TRANSITION1_TIMEOUT:
-         log_printf("INFO: BLE scanning window and interval have been set to their %u-second disconnected values\n", BLE_MISSING_NETWORK_TRANSITION1_TIMEOUT);
+         log_printf("### INFO: BLE scanning window and interval have been set to their %u-second disconnected values\n", BLE_MISSING_NETWORK_TRANSITION1_TIMEOUT);
          _scan_params.interval = BLE_NETWORK_TRANSITION1_SCAN_INTERVAL;
          ble_stop_scanning();
          break;
       case BLE_MISSING_NETWORK_TRANSITION2_TIMEOUT:
-         log_printf("INFO: BLE scanning window and interval have been set to their %u-second disconnected values\n", BLE_MISSING_NETWORK_TRANSITION2_TIMEOUT);
+         log_printf("### INFO: BLE scanning window and interval have been set to their %u-second disconnected values\n", BLE_MISSING_NETWORK_TRANSITION2_TIMEOUT);
          _scan_params.interval = BLE_NETWORK_TRANSITION2_SCAN_INTERVAL;
          ble_stop_scanning();
          break;
@@ -652,7 +652,7 @@ uint32_t ble_request_timestamp(void)
    // Connect to a discovered device and request the current timestamp
    if (!_outgoing_ble_connection_active)
    {
-      log_printf("INFO: Requesting current timestamp from network...\n");
+      log_printf("### INFO: Requesting current timestamp from network...\n");
       _retrieved_timestamp = 0;
       _outgoing_ble_connection_active = 1;
       if (sd_ble_gap_connect(&_networked_device_addr, &_scan_connect_params, &_connection_params, APP_BLE_CONN_CFG_TAG) != NRF_SUCCESS)
