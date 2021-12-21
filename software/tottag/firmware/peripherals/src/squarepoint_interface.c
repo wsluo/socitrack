@@ -97,7 +97,7 @@ static void squarepoint_interrupt_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_pola
        (nrfx_twi_xfer(&_twi_instance, &_rx_data_description, NRFX_TWI_FLAG_NO_XFER_EVT_HANDLER) == NRFX_SUCCESS))
       nrfx_atomic_flag_set(_squarepoint_interrupt_thrown);
    else
-      //log_printf("### ERROR: Failed reading SquarePoint packet of length %i\n", _twi_rx_length);
+	   ;//log_printf("### ERROR: Failed reading SquarePoint packet of length %i\n", _twi_rx_length);
 }
 
 static nrfx_err_t twi_hw_init(void)

@@ -326,7 +326,7 @@ static void squarepoint_data_handler(uint8_t *data, uint32_t len)
 		 uint32_t epoch = 0;
 		 
 		 uint32_t current_tick=rtc_get_current_time_raw();
-		 //log_printf("### DEBUG: Ticks: %lu, %lu, %d \n", current_tick, current_tick-last_tick, is_ble_connected());
+		 log_printf("### DEBUG: Ticks: %lu, %lu, %d \n", current_tick, current_tick-last_tick, is_ble_connected());
 		 last_tick = current_tick;
 		 
 		 
@@ -363,7 +363,7 @@ static void squarepoint_data_handler(uint8_t *data, uint32_t len)
 			   for (uint8_t rx_index = 0; rx_index < SQUAREPOINT_RX_COUNT; ++rx_index){
 				   memcpy(&range, data + offset + SQUAREPOINT_EUI_LEN + rx_index * sizeof(range), sizeof(range));
 				   log_printf("%d ", range);
-				   if (rx_index % 10 == 0){
+				   if (rx_index % 15 == 0){
 					   log_printf("\n");
 				   }
 			   }
@@ -572,7 +572,9 @@ int main(void)
       {
          // Either start SquarePoint or request the correct RTC time based on our current status
          if (nrfx_atomic_flag_fetch(&_app_flags.rtc_time_valid)){
+			 //
 			 start_squarepoint();
+			 //log_printf('### INFO: ble_request_timestamp() is not called\n');
 		 }
          else if ((current_timestamp = ble_request_timestamp()) > 0)
          {
@@ -593,6 +595,7 @@ int main(void)
 #endif
 	  
 	  if (app_enabled && ble_is_network_available() && !is_ble_connected()) ble_connect();
+	  //if (app_enabled && !is_ble_connected()) ble_connect();
 
       // Update the BLE advertising and scanning states
       if (!app_enabled)

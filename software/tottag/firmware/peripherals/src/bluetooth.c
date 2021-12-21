@@ -452,6 +452,7 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
 		//log_printf("RSSI changed, new: %d, channel: %d %02x:%02x:%02x:%02x:%02x:%02x \n",rssi_value, rssi_channel, p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[5],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[4],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[3],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[2],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[1],p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[0]); 
 		uint32_t current_time = rtc_get_current_time();
 		uint32_t current_time_raw = rtc_get_current_time_raw();
+		
 		log_printf("### RSSI: %d, %d, %lu ,%lu \n", rssi_value, rssi_channel, current_time , current_time_raw);
 		
 		sd_card_log_RSSI(rssi_value, rssi_channel, current_time, current_time_raw, false);
@@ -643,7 +644,7 @@ void ble_connect(){
 			_outgoing_ble_connection_active = 0;
 		//nrfx_atomic_flag_clear(_ble_scanning_flag);
     }
-	log_printf("DEBUG: connected? %s\n", _outgoing_ble_connection_active ? "already connected" : "not connected");
+	log_printf("### DEBUG: connected? %s\n", _outgoing_ble_connection_active ? "already connected" : "not connected");
 }
 
 uint32_t ble_request_timestamp(void)
