@@ -14,6 +14,7 @@
 #define STOP_BLE_AND_SQUAREPOINT_WHEN_CHARGING
 #define ENABLE_LOW_BATTERY_SOUNDS
 //#define ENABLE_LEDS
+#define ENABLE_SOUNDS
 //#define PRINTF_TO_SD_CARD
 
 
@@ -21,8 +22,8 @@
 
 #ifndef DEBUG_MODE
 #undef ENABLE_LEDS
+#undef ENABLE_SOUNDS
 #undef PRINTF_TO_SD_CARD
-#undef ENABLE_LOW_BATTERY_SOUNDS
 #ifndef STOP_BLE_AND_SQUAREPOINT_WHEN_CHARGING
 #define STOP_BLE_AND_SQUAREPOINT_WHEN_CHARGING
 #endif
@@ -111,7 +112,6 @@ typedef struct app_flags_t
    nrfx_atomic_flag_t squarepoint_data_received;
    nrfx_atomic_flag_t squarepoint_wakeup_triggered;
    nrfx_atomic_flag_t squarepoint_time_epoch_requested;
-   nrfx_atomic_flag_t squarepoint_needs_init;
    nrfx_atomic_flag_t elapsed_second;
    nrfx_atomic_flag_t sd_card_inserted;
    nrfx_atomic_flag_t rtc_time_valid;
@@ -124,7 +124,6 @@ typedef struct app_flags_t
    nrfx_atomic_flag_t bluetooth_is_scanning;
    nrfx_atomic_flag_t bluetooth_single_scanning;
    nrfx_atomic_u32_t bluetooth_single_scan_timer;
-   nrfx_atomic_u32_t squarepoint_comms_error_count;
    nrfx_atomic_u32_t squarepoint_timeout_counter;
    nrfx_atomic_u32_t battery_check_counter;
    nrfx_atomic_u32_t device_reset_counter;

@@ -16,7 +16,6 @@
 
 // Local state variables -----------------------------------------------------------------------------------------------
 
-static GPIO_InitTypeDef _GPIO_InitStructure = { 0 };
 static EXTI_InitTypeDef _EXTI_InitStructure = { 0 };
 static NVIC_InitTypeDef _NVIC_InitStructure = { 0 };
 
@@ -55,8 +54,7 @@ static uint8_t init_dw1000(void)
 static void disable_all_gpios(void)
 {
    // Enable all GPIO clocks
-   RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA | RCC_AHBPeriph_GPIOB | RCC_AHBPeriph_GPIOC |
-         RCC_AHBPeriph_GPIOD | RCC_AHBPeriph_GPIOE | RCC_AHBPeriph_GPIOF, ENABLE);
+   RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA | RCC_AHBPeriph_GPIOB | RCC_AHBPeriph_GPIOC | RCC_AHBPeriph_GPIOD | RCC_AHBPeriph_GPIOE | RCC_AHBPeriph_GPIOF, ENABLE);
 
    // Set all GPIOs to ANALOG INPUT
    GPIO_InitTypeDef allGPIOs;
@@ -74,8 +72,7 @@ static void disable_all_gpios(void)
    GPIO_Init(GPIOA, &allGPIOs);
 
    // Disable all GPIO clocks (except GPIOA which contains debugging and wakeup pins)
-   RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOB | RCC_AHBPeriph_GPIOC | RCC_AHBPeriph_GPIOD |
-         RCC_AHBPeriph_GPIOE | RCC_AHBPeriph_GPIOF, DISABLE);
+   RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOB | RCC_AHBPeriph_GPIOC | RCC_AHBPeriph_GPIOD | RCC_AHBPeriph_GPIOE | RCC_AHBPeriph_GPIOF, DISABLE);
 }
 
 // Public functions ----------------------------------------------------------------------------------------------------
@@ -85,7 +82,7 @@ uint8_t hw_init(void)
    // Disable all GPIO pins, and enable PWR, Watchdog, and TIM14 clocks
    disable_all_gpios();
    RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR | RCC_APB1Periph_TIM14 | RCC_APB1Periph_WWDG, ENABLE);
-   if ((RCC_GetFlagStatus(RCC_FLAG_WWDGRST) == SET) || (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) == SET))
+   if (RCC_GetFlagStatus(RCC_FLAG_WWDGRST) || RCC_GetFlagStatus(RCC_FLAG_IWDGRST) || RCC_GetFlagStatus(RCC_FLAG_SFTRST))
       RCC_ClearFlag();
 
    // Initialize LEDs
@@ -98,7 +95,7 @@ uint8_t hw_init(void)
    GPIO_InitStructure_B.GPIO_PuPd = GPIO_PuPd_NOPULL;
    GPIO_Init(STM_GPIO3_PORT, &GPIO_InitStructure_B);
 
-   // Signal initialization by turning LED RED
+   // Signal initialization by turning on the RED LED
    led_on(RED);
 
     // Initialize SEGGER RTT debugging output
@@ -124,13 +121,9 @@ uint8_t hw_init(void)
    WWDG_EnableIT();
 
    // Initialize External Interrupt Pin variables
-   _GPIO_InitStructure.GPIO_Pin = EXT_INTERRUPT_PIN;
-   _GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-   _GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-   _GPIO_InitStructure.GPIO_Speed = GPIO_Speed_Level_3;
    _EXTI_InitStructure.EXTI_Line = EXT_INTERRUPT_EXTI_LINE;
    _EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
-   _EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising_Falling;
+   _EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
    _NVIC_InitStructure.NVIC_IRQChannel = EXT_INTERRUPT_EXTI_IRQn;
    _NVIC_InitStructure.NVIC_IRQChannelPriority = 0x00;
 
@@ -148,18 +141,22 @@ void hw_stop_chip(void)
    // Force the DW1000 radio into DEEP SLEEP mode
    dw1000_force_deepsleep();
 
-   // Enable the SYSCFG clock, and set the External Interrupt Pin to a detectable input
+   // Set the External Interrupt Pin to be an interruptible input
    RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
-   _GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
-   _EXTI_InitStructure.EXTI_LineCmd = ENABLE;
-   _NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-   GPIO_Init(EXT_INTERRUPT_PORT, &_GPIO_InitStructure);
    SYSCFG_EXTILineConfig(EXT_INTERRUPT_EXTI_PORT, EXT_INTERRUPT_EXTI_PIN);
+   _NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+   _EXTI_InitStructure.EXTI_LineCmd = ENABLE;
    EXTI_Init(&_EXTI_InitStructure);
    NVIC_Init(&_NVIC_InitStructure);
 
-   // Put the chip into STOP mode
+   // Put the chip into STOP or STANDBY mode
+#if EXT_WAKEUP_PIN_ENABLED
+   PWR->CR |= PWR_CR_CWUF;
+   PWR_WakeUpPinCmd(PWR_WakeUpPin_1, ENABLE);
+   PWR_EnterSTANDBYMode();
+#else
    PWR_EnterSTOPMode(PWR_Regulator_LowPower, PWR_STOPEntry_WFI);
+#endif
 }
 
 bool hw_restart_chip(void)
@@ -171,14 +168,12 @@ bool hw_restart_chip(void)
    // Re-initalize the system clocks and PLL
    SystemInit();
 
-   // Reset the External Interrupt Pin to be an output
+   // Reset the External Interrupt Pin to be a simple input
+   RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
    _NVIC_InitStructure.NVIC_IRQChannelCmd = DISABLE;
-   _GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
    _EXTI_InitStructure.EXTI_LineCmd = DISABLE;
    NVIC_Init(&_NVIC_InitStructure);
    EXTI_Init(&_EXTI_InitStructure);
-   GPIO_Init(EXT_INTERRUPT_PORT, &_GPIO_InitStructure);
-   EXT_INTERRUPT_PORT->BRR = EXT_INTERRUPT_PIN;
 
    // Wake up the DW1000 radio from DEEP SLEEP mode
    dw1000_reset_hard(TRUE);
