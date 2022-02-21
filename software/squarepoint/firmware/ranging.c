@@ -179,9 +179,9 @@ uint8_t perform_ranging(uint8_t *ids_and_ranges, PROTOCOL_EUI_TYPE *expected_dev
                debug_msg("\n");
             }
          }
-
+		 /*
       // TODO: DELETE THIS
-      /*for (uint8_t i = 0; i < num_valid_distances; ++i)
+     for (uint8_t i = 0; i < num_valid_distances; ++i)
       {
          debug_msg("DEBUG: Calculated range [");
          debug_msg_uint(i);
@@ -201,11 +201,30 @@ uint8_t perform_ranging(uint8_t *ids_and_ranges, PROTOCOL_EUI_TYPE *expected_dev
             range_millimeters = 0;
          if (range_millimeters < MAX_VALID_RANGE_MM)
          {
+			/* original version
             // Copy valid ranges into the ID/range output buffer
             memcpy(ids_and_ranges + output_buffer_index, &response->responder_eui, PROTOCOL_EUI_SIZE);
             output_buffer_index += PROTOCOL_EUI_SIZE;
+			
+			
             memcpy(ids_and_ranges + output_buffer_index, &range_millimeters, sizeof(range_millimeters));
             output_buffer_index += sizeof(range_millimeters);
+			*/
+			
+			//NUM_RANGING_BROADCASTS ranges, of which num_valid_distances are valid
+			 
+            memcpy(ids_and_ranges + output_buffer_index, &response->responder_eui, PROTOCOL_EUI_SIZE);
+            output_buffer_index += PROTOCOL_EUI_SIZE;
+			
+            memcpy(ids_and_ranges + output_buffer_index, &range_millimeters, sizeof(range_millimeters)); //median value
+            output_buffer_index += sizeof(range_millimeters);
+			//all raw data
+			for (uint8_t i = 0; i < NUM_RANGING_BROADCASTS; ++i){ 
+				memcpy(ids_and_ranges + output_buffer_index, &_distances_millimeters[i], sizeof(range_millimeters));
+				output_buffer_index += sizeof(range_millimeters);
+			}
+			
+			
             ++num_successful_rangings;
             ++_state.num_ranges;
          }
@@ -228,8 +247,20 @@ uint8_t perform_ranging(uint8_t *ids_and_ranges, PROTOCOL_EUI_TYPE *expected_dev
          int32_t out_of_range_value = RANGE_ERROR_OUT_OF_RANGE;
          memcpy(ids_and_ranges + output_buffer_index, &expected_devices[i], PROTOCOL_EUI_SIZE);
          output_buffer_index += PROTOCOL_EUI_SIZE;
+		 
+		 /*original version
          memcpy(ids_and_ranges + output_buffer_index, &out_of_range_value, sizeof(out_of_range_value));
          output_buffer_index += sizeof(out_of_range_value);
+		 */
+		 
+        memcpy(ids_and_ranges + output_buffer_index, &out_of_range_value, sizeof(out_of_range_value));
+        output_buffer_index += sizeof(out_of_range_value); 
+		 
+		for (uint8_t i = 0; i < NUM_RANGING_BROADCASTS; ++i){
+			memcpy(ids_and_ranges + output_buffer_index, &out_of_range_value, sizeof(out_of_range_value));
+			output_buffer_index += sizeof(out_of_range_value);
+		}
+		 
          ++_state.num_ranges;
       }
 

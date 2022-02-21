@@ -441,7 +441,7 @@ static void receive_schedule(const schedule_packet_t* schedule, bool is_master_s
       }
 
       // Update the Unix epoch timestamp as long as it is within a year of the time we currently think it is
-      if ((schedule->epoch_time_unix > 1612810414) && ((_schedule_packet.epoch_time_unix < 1612810414) || (abs((int32_t)(schedule->epoch_time_unix - _schedule_packet.epoch_time_unix)) <= SECONDS_PER_YEAR)))
+      if ((schedule->epoch_time_unix > 1612810414) && ((schedule->epoch_time_unix < 1800000000) || (abs((int32_t)(schedule->epoch_time_unix - _schedule_packet.epoch_time_unix)) <= SECONDS_PER_YEAR)))
          _schedule_packet.epoch_time_unix = schedule->epoch_time_unix;
       else
       {
@@ -526,9 +526,18 @@ static void transmit_results(uint32_t transmit_time_dw)
 
    // Create results transmission message containing only successful results
    _results_packet.results_length = _num_successful_ranges;
-   uint16_t packet_size = sizeof(struct ieee154_header_broadcast) + sizeof(struct ieee154_footer) + RESULTS_PACKET_PAYLOAD_LENGTH + (_num_successful_ranges * PACKET_SINGLE_RESULT_LENGTH);
-   memcpy(_results_packet.results, ids_and_ranges + 1, _num_successful_ranges * PACKET_SINGLE_RESULT_LENGTH);
-
+   uint16_t packet_size = sizeof(struct ieee154_header_broadcast) + sizeof(struct ieee154_footer) + RESULTS_PACKET_PAYLOAD_LENGTH + (_num_successful_ranges * PACKET_SINGLE_EXCHANGED_RESULT_LENGTH); //modified from PACKET_SINGLE_RESULT_LENGTH
+   
+   /*original
+   memcpy(_results_packet.results, ids_and_ranges + 1, _num_successful_ranges * PACKET_SINGLE_RESULT_LENGTH); //TODO needs change!
+   */
+   
+   for (uint8_t i=0; i<_num_successful_ranges; ++i){
+	   
+	   memcpy(_results_packet.results + i * PACKET_SINGLE_EXCHANGED_RESULT_LENGTH, ids_and_ranges + 1 + i * PACKET_SINGLE_RESULT_LENGTH, PACKET_SINGLE_EXCHANGED_RESULT_LENGTH); 
+   	   
+   }
+   
    // Trigger send operation
    if (!glossy_transmit_packet(transmit_time_dw, (uint8_t*)&_results_packet, packet_size, TRUE))
    {
@@ -557,8 +566,8 @@ static void receive_results(const results_packet_t* results)
 
       // Search for a valid ranging result with this device as the destination
       int32_t received_range = 0, current_range = 0;
-      uint8_t output_buffer_index = 1 + (scratch_ranges[0] * PACKET_SINGLE_RESULT_LENGTH);
-      for (uint8_t i = 0, offset = 0; i < results->results_length; ++i, offset += PACKET_SINGLE_RESULT_LENGTH)
+      uint8_t output_buffer_index = 1 + (scratch_ranges[0] * PACKET_SINGLE_RESULT_LENGTH); //TODO  for appending ranges that are not seen on local device
+      for (uint8_t i = 0, offset = 0; i < results->results_length; ++i, offset += PACKET_SINGLE_EXCHANGED_RESULT_LENGTH) //modified from PACKET_SINGLE_RESULT_LENGTH
       {
          memcpy(&received_range, results->results + offset + PROTOCOL_EUI_SIZE, sizeof(received_range));
          if ((memcmp(results->results + offset, &_config.EUI, PROTOCOL_EUI_SIZE) == 0) && (received_range >= 0))
@@ -570,14 +579,14 @@ static void receive_results(const results_packet_t* results)
                {
                   // Take the simple average of the two ranges as the final range
                   existing_range_found = TRUE;
-                  memcpy(&current_range, scratch_ranges + 1 + PROTOCOL_EUI_SIZE + (j * PACKET_SINGLE_RESULT_LENGTH), sizeof(current_range));
+                  memcpy(&current_range, scratch_ranges + 1 + PROTOCOL_EUI_SIZE + (j * PACKET_SINGLE_RESULT_LENGTH), sizeof(current_range)); //no need for change if put the median range at the beginning
                   if (current_range >= 0)
                   {
                      current_range = (current_range + received_range) / 2;
-                     memcpy(scratch_ranges + 1 + PROTOCOL_EUI_SIZE + (j * PACKET_SINGLE_RESULT_LENGTH), &current_range, sizeof(current_range));
+                     memcpy(scratch_ranges + 1 + PROTOCOL_EUI_SIZE + (j * PACKET_SINGLE_RESULT_LENGTH), &current_range, sizeof(current_range)); //no need for change if put the median range at the beginning
                   }
                   else
-                     memcpy(scratch_ranges + 1 + PROTOCOL_EUI_SIZE + (j * PACKET_SINGLE_RESULT_LENGTH), &received_range, sizeof(received_range));
+                     memcpy(scratch_ranges + 1 + PROTOCOL_EUI_SIZE + (j * PACKET_SINGLE_RESULT_LENGTH), &received_range, sizeof(received_range)); //local incorrect; replace
                }
 
             // Add the remote device's range if ours was non-existent
@@ -587,6 +596,13 @@ static void receive_results(const results_packet_t* results)
                output_buffer_index += PROTOCOL_EUI_SIZE;
                memcpy(scratch_ranges + output_buffer_index, &received_range, sizeof(received_range));
                output_buffer_index += sizeof(received_range);
+			   //fill up the rest as "raw"
+   			   for (uint8_t k = 0; k < NUM_RANGING_BROADCASTS; ++k){ 
+				   memcpy(scratch_ranges + output_buffer_index, &received_range, sizeof(received_range));
+   				   output_buffer_index += sizeof(received_range);
+   			   }
+			   
+			   
                ++scratch_ranges[0];
             }
             break;

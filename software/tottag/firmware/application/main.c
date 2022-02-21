@@ -38,6 +38,7 @@ static nrf_drv_spi_t _imu_spi_instance = NRF_DRV_SPI_INSTANCE(IMU_SPI_BUS_IDX);
 static uint8_t _range_buffer[APP_BLE_BUFFER_LENGTH] = { 0 };
 static volatile uint16_t _range_buffer_length = 0;
 
+static uint32_t last_tick = 0;
 
 // Helper functions ----------------------------------------------------------------------------------------------------
 
@@ -281,6 +282,13 @@ static void watchdog_handler(void *p_context)     // This function is triggered 
       while (true);
 }
 
+static uint32_t get_int(uint8_t *data);
+static uint32_t get_int(uint8_t *data){
+	uint32_t val = 0;
+	memcpy(&val, data, 4);
+	return val;
+}
+
 static void squarepoint_data_handler(uint8_t *data, uint32_t len)
 {
    // Handle the incoming message
@@ -293,20 +301,43 @@ static void squarepoint_data_handler(uint8_t *data, uint32_t len)
          log_printf("RANGES, included number of ranges: %i\n", data[1]);
          const uint8_t packet_overhead = 2 + SQUAREPOINT_EUI_LEN, num_ranges = data[1];
          nrfx_atomic_flag_set(&_app_flags.squarepoint_running);
-         uint32_t range = 0, epoch = 0;
+         int32_t range = 0;
+		 uint32_t epoch = 0;
+		 
+		 uint32_t current_tick=rtc_get_current_time_raw();
+		 log_printf("DEBUG: Ticks: %lu, %lu, %d \n", current_tick, current_tick-last_tick, is_ble_connected());
+		 last_tick = current_tick;
 
          // Output the received ranging data
          for (uint8_t i = 0; i < num_ranges; ++i)
             if (memcmp(data + packet_overhead + (i * APP_LOG_RANGE_LENGTH), ble_get_empty_eui(), SQUAREPOINT_EUI_LEN))
             {
-               uint8_t offset = packet_overhead + (i * APP_LOG_RANGE_LENGTH);
+               
+			   
+			   /* original
+			   uint8_t offset = packet_overhead + (i * APP_LOG_RANGE_LENGTH);	
                memcpy(&range, data + offset + SQUAREPOINT_EUI_LEN, sizeof(range));
                log_printf("INFO:     Device %02X with millimeter range %lu\n", data[offset + 0], range);
+			   */
+				
+			   uint16_t offset = packet_overhead + (i * APP_LOG_RANGE_LENGTH); //APP_LOG_RANGE_LENGTH = len(eui) + len of all data in a single result
+			   log_printf("INFO:     Device %02X with millimeter range ",data[offset + 0]);
+
+			   
+			   for (uint8_t rx_index = 0; rx_index < SQUAREPOINT_RX_COUNT; ++rx_index){
+				   memcpy(&range, data + offset + SQUAREPOINT_EUI_LEN + rx_index * sizeof(range), sizeof(range));
+				   log_printf("%d ", range);
+				   if (rx_index % 10 == 0){
+					   log_printf("\n");
+				   }
+			   }
+			   log_printf("\n");
             }
 
          // Copy the ranging data to the ranging buffer
-         _range_buffer_length = (uint16_t)MIN(len - 1, APP_BLE_BUFFER_LENGTH);
-         memcpy(_range_buffer, data + 1, _range_buffer_length);
+         _range_buffer_length = (uint16_t)MIN(len - 1 + 4, APP_BLE_BUFFER_LENGTH); //the size of _range_buffer is APP_BLE_BUFFER_LENGTH, which is 256 in the original version
+         memcpy(_range_buffer, data + 1, _range_buffer_length - 4); //copy everything in incoming data
+		 memcpy(_range_buffer + _range_buffer_length -4 , &current_tick, sizeof(current_tick)); //copy tick
 
          // Update the application epoch
          memcpy(&epoch, data + packet_overhead + (num_ranges * APP_LOG_RANGE_LENGTH), sizeof(epoch));
@@ -501,11 +532,15 @@ int main(void)
 
       // Check if the SquarePoint module should be started or stopped based on runtime status and network discovery
       app_enabled = nrfx_atomic_flag_fetch(&_app_flags.squarepoint_enabled);
+	  
+	  
+
       if (app_enabled && ble_is_network_available() && !nrfx_atomic_flag_fetch(&_app_flags.squarepoint_running))
       {
          // Either start SquarePoint or request the correct RTC time based on our current status
-         if (nrfx_atomic_flag_fetch(&_app_flags.rtc_time_valid))
-            start_squarepoint();
+         if (nrfx_atomic_flag_fetch(&_app_flags.rtc_time_valid)){
+			 start_squarepoint();
+		 }
          else if ((current_timestamp = ble_request_timestamp()) > 0)
          {
             sd_card_log_updated_epoch(current_timestamp);
@@ -522,6 +557,8 @@ int main(void)
               (nrfx_atomic_u32_fetch(&_app_flags.calibration_index) != BLE_CALIBRATION_INDEX_INVALID))
          start_squarepoint_calibration();
 #endif
+	  
+	  if (app_enabled && ble_is_network_available() && !is_ble_connected()) ble_connect();
 
       // Update the BLE advertising and scanning states
       if (!app_enabled)

@@ -106,6 +106,8 @@ void host_interface_notify_ranges(uint8_t *ids_ranges, uint8_t len)
    PROTOCOL_EUI_TYPE eui = 0;
    uint32_t timestamp = 0, range = 0;
    memcpy(&timestamp, ids_ranges + len - sizeof(timestamp), sizeof(timestamp));
+   
+   /* original (for debug only?)
    for (uint8_t i = 0, offset = 1 + PROTOCOL_EUI_SIZE; i < ids_ranges[0]; ++i, offset += (PROTOCOL_EUI_SIZE + sizeof(range)))
    {
       memcpy(&eui, ids_ranges + offset, PROTOCOL_EUI_SIZE);
@@ -121,6 +123,7 @@ void host_interface_notify_ranges(uint8_t *ids_ranges, uint8_t len)
          debug_msg("Unable to calculate!");
       debug_msg("\n");
    }
+   */
 
    // Wait for the host to complete any pending reads
    if (atomic_read(&tx_needs_ack))
