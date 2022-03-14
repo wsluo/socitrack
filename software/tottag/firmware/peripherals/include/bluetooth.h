@@ -17,6 +17,7 @@ const uint8_t* ble_get_highest_network_eui(void);
 void ble_start_advertising(void);
 void ble_start_scanning(void);
 void ble_stop_advertising(void);
+void ble_update_advertising(uint32_t current_time,uint16_t batt_mv,bool is_plugged_in, bool is_charging);
 void ble_stop_scanning(void);
 void ble_clear_scheduler_eui(void);
 uint8_t ble_set_scheduler_eui(const uint8_t* eui, uint8_t num_eui_bytes);

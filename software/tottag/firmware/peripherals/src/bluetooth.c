@@ -265,6 +265,72 @@ static void advertising_init(void)
 }
 
 
+
+
+void ble_update_advertising(uint32_t current_time,uint16_t batt_mv,bool is_plugged_in, bool is_charging){
+    // Stop BLE advertisements, update data, and restart
+    //ble_stop_advertising();
+    //memcpy(_app_ble_advdata, _scheduler_eui, APP_BLE_ADVDATA_LENGTH);
+    //ble_advertising_init(&_advertising, &_adv_init);
+    //ble_advertising_conn_cfg_tag_set(&_advertising, APP_BLE_CONN_CFG_TAG);
+    //ble_start_advertising();	
+	
+	ble_stop_advertising();
+   
+    // Variables used for manufacturer specific data
+    ble_advdata_manuf_data_t p_manuf_specific_data;
+    uint8_array_t            adv_manuf_data_array;
+    uint8_t                  adv_manuf_data_data[16];
+	
+	memset(adv_manuf_data_data, 0, sizeof(adv_manuf_data_data));
+	
+	
+	//result[0] = (value & 0x000000ff);
+	//result[1] = (value & 0x0000ff00) >> 8;
+	//result[2] = (value & 0x00ff0000) >> 16;
+	//result[3] = (value & 0xff000000) >> 24;
+	
+
+    // Configuration of manufacturer specific data
+    adv_manuf_data_data[0] = (current_time & 0x000000ff);; //your data array[0]=value & 0xff; array[1]=(value >> 8);
+    adv_manuf_data_data[1] = (current_time & 0x0000ff00) >> 8; //your data
+	adv_manuf_data_data[2] = (current_time & 0x00ff0000) >> 16; //your data
+	adv_manuf_data_data[3] = (current_time & 0xff000000) >> 24;; //your data
+    adv_manuf_data_data[4] = batt_mv & 0xff; //your data array[0]=value & 0xff; array[1]=(value >> 8);
+    adv_manuf_data_data[5] = (batt_mv >>8); //your data
+	adv_manuf_data_data[6] = is_plugged_in ? 0x01 : 0x00; //your data
+	adv_manuf_data_data[7] = is_charging ? 0x01 : 0x00; //your data
+    //adv_manuf_data_data[8] = 0xAA; //your data array[0]=value & 0xff; array[1]=(value >> 8);
+    //adv_manuf_data_data[9] = 0xBB; //your data
+	//adv_manuf_data_data[10] = 0xCC; //your data
+	//adv_manuf_data_data[11] = 0xDD; //your data
+    //adv_manuf_data_data[12] = 0xAA; //your data array[0]=value & 0xff; array[1]=(value >> 8);
+    //adv_manuf_data_data[13] = 0xBB; //your data
+	//adv_manuf_data_data[14] = 0xCC; //your data
+	//adv_manuf_data_data[15] = 0xDD; //your data
+
+    adv_manuf_data_array.p_data = adv_manuf_data_data;
+    adv_manuf_data_array.size = sizeof(adv_manuf_data_data);
+
+    p_manuf_specific_data.company_identifier = APP_COMPANY_IDENTIFIER;
+    p_manuf_specific_data.data = adv_manuf_data_array;
+	
+    _adv_init.srdata.uuids_complete.uuid_cnt = 0;
+    _adv_init.srdata.uuids_complete.p_uuids = NULL;
+
+    _adv_init.srdata.p_manuf_specific_data = &p_manuf_specific_data;
+	
+    APP_ERROR_CHECK(ble_advertising_init(&_advertising, &_adv_init));
+    ble_advertising_conn_cfg_tag_set(&_advertising, APP_BLE_CONN_CFG_TAG);
+    ble_start_advertising();	
+	
+    //SDK16.x.x implementation will handle all buffering and encoding inside the update function
+    //err_code = ble_advertising_advdata_update(&_advertising, &new_data, NULL);  
+    //APP_ERROR_CHECK(err_code);
+	
+}
+
+
 // Bluetooth callback and event functionality --------------------------------------------------------------------------
 
 void assert_nrf_callback(uint16_t line_num, const uint8_t *p_file_name) { app_error_handler(DEAD_BEEF, line_num, p_file_name); }

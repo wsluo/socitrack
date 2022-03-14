@@ -476,6 +476,9 @@ int main(void)
             log_printf("INFO: Battery voltage currently %hu mV\n", batt_mv);
             nrfx_atomic_u32_store(&_app_flags.battery_check_counter, 0);
          }
+		 
+		 //test ble adv
+		 ble_update_advertising(rtc_get_current_time(), batt_mv,battery_monitor_is_plugged_in(),battery_monitor_is_charging());
          sd_card_log_battery(batt_mv, rtc_get_current_time(), !nrfx_atomic_flag_fetch(&_app_flags.squarepoint_running));
       }
 

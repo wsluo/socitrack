@@ -65,7 +65,7 @@
 // Behavior
 #define WATCHDOG_CHECK_RATE_MS                  1000
 #define WATCHDOG_HARD_RESET_TIMEOUT_MS          2000
-#define APP_BATTERY_CHECK_TIMEOUT_SEC           300
+#define APP_BATTERY_CHECK_TIMEOUT_SEC           5 //was 300, for debugging only
 #define APP_LACK_OF_MOTION_TIMEOUT_SEC          2
 #define APP_RUNNING_RESPONSE_TIMEOUT_SEC        5
 #define BLE_NETWORK_DISCOVERY_COUNTDOWN_VALUE   5
