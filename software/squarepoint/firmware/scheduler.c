@@ -526,8 +526,15 @@ static void transmit_results(uint32_t transmit_time_dw)
 
    // Create results transmission message containing only successful results
    _results_packet.results_length = _num_successful_ranges;
-   uint16_t packet_size = sizeof(struct ieee154_header_broadcast) + sizeof(struct ieee154_footer) + RESULTS_PACKET_PAYLOAD_LENGTH + (_num_successful_ranges * PACKET_SINGLE_RESULT_LENGTH);
-   memcpy(_results_packet.results, ids_and_ranges + 1, _num_successful_ranges * PACKET_SINGLE_RESULT_LENGTH);
+
+   //uint16_t packet_size = sizeof(struct ieee154_header_broadcast) + sizeof(struct ieee154_footer) + RESULTS_PACKET_PAYLOAD_LENGTH + (_num_successful_ranges * PACKET_SINGLE_RESULT_LENGTH);
+   //memcpy(_results_packet.results, ids_and_ranges + 1, _num_successful_ranges * PACKET_SINGLE_RESULT_LENGTH);
+   
+   uint16_t packet_size = sizeof(struct ieee154_header_broadcast) + sizeof(struct ieee154_footer) + RESULTS_PACKET_PAYLOAD_LENGTH + (_num_successful_ranges * PACKET_SINGLE_EXCHANGED_RESULT_LENGTH); //because PACKET_SINGLE_RESULT_LENGTH now is the length for raw data, use another name for the EUI + median
+   //do not copy the raw data
+   for (uint8_t i=0; i<_num_successful_ranges; ++i){
+	   memcpy(_results_packet.results + i * PACKET_SINGLE_EXCHANGED_RESULT_LENGTH, ids_and_ranges + 1 + i * PACKET_SINGLE_RESULT_LENGTH, PACKET_SINGLE_EXCHANGED_RESULT_LENGTH); 
+   }
 
    // Trigger send operation
    if (!glossy_transmit_packet(transmit_time_dw, (uint8_t*)&_results_packet, packet_size, TRUE))
@@ -558,7 +565,8 @@ static void receive_results(const results_packet_t* results)
       // Search for a valid ranging result with this device as the destination
       int32_t received_range = 0, current_range = 0;
       uint8_t output_buffer_index = 1 + (scratch_ranges[0] * PACKET_SINGLE_RESULT_LENGTH);
-      for (uint8_t i = 0, offset = 0; i < results->results_length; ++i, offset += PACKET_SINGLE_RESULT_LENGTH)
+      // for (uint8_t i = 0, offset = 0; i < results->results_length; ++i, offset += PACKET_SINGLE_RESULT_LENGTH) //original, since PACKET_SINGLE_RESULT_LENGTH now has all raw data, needs modification below
+	  for (uint8_t i = 0, offset = 0; i < results->results_length; ++i, offset += PACKET_SINGLE_EXCHANGED_RESULT_LENGTH) //modified from PACKET_SINGLE_RESULT_LENGTH	  
       {
          memcpy(&received_range, results->results + offset + PROTOCOL_EUI_SIZE, sizeof(received_range));
          if ((memcmp(results->results + offset, &_config.EUI, PROTOCOL_EUI_SIZE) == 0) && (received_range >= 0))
@@ -587,6 +595,8 @@ static void receive_results(const results_packet_t* results)
                output_buffer_index += PROTOCOL_EUI_SIZE;
                memcpy(scratch_ranges + output_buffer_index, &received_range, sizeof(received_range));
                output_buffer_index += sizeof(received_range);
+			   //leap through unfilled raw data (currently raw data is transmited over air)
+			   output_buffer_index += NUM_RANGING_BROADCASTS * sizeof(received_range);
                ++scratch_ranges[0];
             }
             break;

@@ -257,13 +257,24 @@ static uint32_t squarepoint_data_handler(uint8_t *data, uint32_t len, uint32_t t
             if (memcmp(data + packet_overhead + (i * APP_LOG_RANGE_LENGTH), ble_get_empty_eui(), SQUAREPOINT_EUI_LEN))
             {
                uint8_t offset = packet_overhead + (i * APP_LOG_RANGE_LENGTH);
-               memcpy(&range, data + offset + SQUAREPOINT_EUI_LEN, sizeof(range));
-               log_printf("INFO:     Device %02X with millimeter range %lu\n", data[offset + 0], range);
+               //memcpy(&range, data + offset + SQUAREPOINT_EUI_LEN, sizeof(range));
+               //log_printf("INFO:     Device %02X with millimeter range %lu\n", data[offset + 0], range);
+			   
+			   log_printf("INFO:     Device %02X with millimeter range ",data[offset + 0]);
+			   for (uint8_t rx_index = 0; rx_index < SQUAREPOINT_RX_COUNT; ++rx_index){
+				   memcpy(&range, data + offset + SQUAREPOINT_EUI_LEN + rx_index * sizeof(range), sizeof(range));
+				   log_printf("%lu ", range);
+				   if (rx_index % 15 == 0){
+					   log_printf("\n");
+				   }
+			   }
+			   log_printf("\n");			   
             }
 
          // Copy the ranging data to the ranging buffer
-         _range_buffer_length = (uint16_t)MIN(len - 1, APP_BLE_MAX_BUFFER_LENGTH);
-         memcpy(_range_buffer, data + 1, _range_buffer_length);
+		 //pass for now
+         //_range_buffer_length = (uint16_t)MIN(len - 1, APP_BLE_MAX_BUFFER_LENGTH);
+         //memcpy(_range_buffer, data + 1, _range_buffer_length);
 
          // Update the application epoch
          memcpy(&epoch, data + packet_overhead + (num_ranges * APP_LOG_RANGE_LENGTH), sizeof(epoch));
@@ -286,8 +297,9 @@ static uint32_t squarepoint_data_handler(uint8_t *data, uint32_t len, uint32_t t
          else
          {
             // Store the received ranges to the SD card
-            sd_card_log_ranges(_range_buffer, _range_buffer_length);
-            ble_update_ranging_data(_range_buffer, _range_buffer_length);
+			//pass for now
+            //sd_card_log_ranges(_range_buffer, _range_buffer_length);
+            //ble_update_ranging_data(_range_buffer, _range_buffer_length);
          }
 
          // Reset the SquarePoint communications timeout counter

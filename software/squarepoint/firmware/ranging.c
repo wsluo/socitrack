@@ -12,6 +12,7 @@ static const uint8_t channel_index_to_channel_rf_number[3] = { 1, 3, 5 };
 static uint64_t _rx_TOAs[NUM_RANGING_BROADCASTS];
 static ranging_state_t _state;
 static int _distances_millimeters[NUM_RANGING_BROADCASTS];
+static int _unsorted_distances_millimeters[NUM_RANGING_BROADCASTS];
 
 // Public functions ----------------------------------------------------------------------------------------------------
 
@@ -147,6 +148,7 @@ uint8_t perform_ranging(uint8_t *ids_and_ranges, PROTOCOL_EUI_TYPE *expected_dev
       // Calculate the device distances using one-way TOFs for each request message sent
       uint8_t num_valid_distances = 0;
       memset(_distances_millimeters, 0, sizeof(_distances_millimeters));
+	  memset(_unsorted_distances_millimeters, 0, sizeof(_unsorted_distances_millimeters));
       for (uint8_t i = 0; i < NUM_RANGING_BROADCASTS; ++i)
          if (_rx_TOAs[i])
          {
@@ -166,8 +168,11 @@ uint8_t perform_ranging(uint8_t *ids_and_ranges, PROTOCOL_EUI_TYPE *expected_dev
             int distance_millimeters = dwtime_to_millimeters(TOF);
 
             // Check that the distance we have at this point is at all reasonable
-            if (distance_millimeters >= MIN_VALID_RANGE_MM && distance_millimeters <= MAX_VALID_RANGE_MM)
+            if (distance_millimeters >= MIN_VALID_RANGE_MM && distance_millimeters <= MAX_VALID_RANGE_MM){
                insert_sorted(_distances_millimeters, distance_millimeters, num_valid_distances++);
+			   _unsorted_distances_millimeters[i] = distance_millimeters;
+			   
+		   }
             else
             {
                debug_msg("WARNING: Disregarding range to EUI ");
@@ -206,6 +211,13 @@ uint8_t perform_ranging(uint8_t *ids_and_ranges, PROTOCOL_EUI_TYPE *expected_dev
             output_buffer_index += PROTOCOL_EUI_SIZE;
             memcpy(ids_and_ranges + output_buffer_index, &range_millimeters, sizeof(range_millimeters));
             output_buffer_index += sizeof(range_millimeters);
+			
+		   //copy all raw data, unsorted
+			for (uint8_t i = 0; i < NUM_RANGING_BROADCASTS; ++i){ 
+				memcpy(ids_and_ranges + output_buffer_index, &_unsorted_distances_millimeters[i], sizeof(range_millimeters));
+				output_buffer_index += sizeof(range_millimeters);
+			}
+			
             ++num_successful_rangings;
             ++_state.num_ranges;
          }
@@ -230,6 +242,12 @@ uint8_t perform_ranging(uint8_t *ids_and_ranges, PROTOCOL_EUI_TYPE *expected_dev
          output_buffer_index += PROTOCOL_EUI_SIZE;
          memcpy(ids_and_ranges + output_buffer_index, &out_of_range_value, sizeof(out_of_range_value));
          output_buffer_index += sizeof(out_of_range_value);
+		//copy out of range value to all raw data slot 
+ 		for (uint8_t i = 0; i < NUM_RANGING_BROADCASTS; ++i){
+ 			memcpy(ids_and_ranges + output_buffer_index, &out_of_range_value, sizeof(out_of_range_value));
+ 			output_buffer_index += sizeof(out_of_range_value);
+ 		}
+		
          ++_state.num_ranges;
       }
 
