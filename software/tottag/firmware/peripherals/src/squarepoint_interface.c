@@ -81,13 +81,14 @@ static void squarepoint_interrupt_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_pola
          err_code = nrfx_twi_xfer(&_twi_instance, &_tx_data_description, NRFX_TWI_FLAG_NO_XFER_EVT_HANDLER);
       if (err_code == NRFX_SUCCESS)
       {
+		 _rx_length_descriptions[idx].primary_length = 2; //after the info is requested 
          num_retries = 3;
          err_code = nrfx_twi_xfer(&_twi_instance, &_rx_length_descriptions[idx], NRFX_TWI_FLAG_NO_XFER_EVT_HANDLER);
          while ((err_code != NRFX_SUCCESS) && num_retries--)
             err_code = nrfx_twi_xfer(&_twi_instance, &_rx_length_descriptions[idx], NRFX_TWI_FLAG_NO_XFER_EVT_HANDLER);
       }
 	  log_printf("squarepoint_interface.c: readed twi_rx length is %u\n",_twi_rx_lens[idx]);//debugging raw data transfer
-      if ((err_code != NRFX_SUCCESS) || !_twi_rx_lens[idx] || (_twi_rx_lens[idx] == 0xFF))
+      if ((err_code != NRFX_SUCCESS) || !_twi_rx_lens[idx] || (_twi_rx_lens[idx] == 0xFFFF)) //originally 0xFF
       {
          log_printf("ERROR: Failed reading SquarePoint packet length\n");
          return;

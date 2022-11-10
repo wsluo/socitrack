@@ -124,11 +124,6 @@ void host_interface_notify_ranges(uint8_t *ids_ranges, uint16_t len)
          debug_msg("Unable to calculate!");
       debug_msg("\n");
    }
-   for (uint8_t i = 0; i<100; i++){//debugging raw data transfer
-	   debug_msg_uint(ids_ranges[i]);  	
-	   debug_msg(" ");
-   }
-   debug_msg("\n");//debugging raw data transfer
 
    // Wait for the host to complete any pending reads
    if (atomic_read(&tx_needs_ack))
@@ -140,14 +135,9 @@ void host_interface_notify_ranges(uint8_t *ids_ranges, uint16_t len)
 
    // Set up the transfer buffer
    txBuffer[0] = ((1 + len) & 0x00ff); // len = 256: causes overflow
-   //txBuffer[1] = ((1 + len) & 0xff00) >> 8;	
-   debug_msg("tx buffer: ");//debugging raw data transfer
-   debug_msg_uint(txBuffer[0]); //debugging raw data transfer
-   debug_msg(" ");//debugging raw data transfer
-   debug_msg_uint(txBuffer[1]); //debugging raw data transfer
-   debug_msg("\n");//debugging raw data transfer
-   txBuffer[1] = HOST_IFACE_INTERRUPT_RANGES;
-   memcpy(txBuffer + 2, ids_ranges, len);
+   txBuffer[1] = ((1 + len) & 0xff00) >> 8;	
+   txBuffer[2] = HOST_IFACE_INTERRUPT_RANGES;
+   memcpy(txBuffer + 3, ids_ranges, len);
 
    // Inform the host of impending data transfer
    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
@@ -192,8 +182,9 @@ void host_interface_schedule_wakeup(uint8_t quarter_wakeup_delay_ms)
 
    // Set up the transfer buffer
    txBuffer[0] = 2;
-   txBuffer[1] = HOST_IFACE_INTERRUPT_WAKEUP;
-   txBuffer[2] = quarter_wakeup_delay_ms;
+   txBuffer[1] = 0;
+   txBuffer[2] = HOST_IFACE_INTERRUPT_WAKEUP;
+   txBuffer[3] = quarter_wakeup_delay_ms;
 
    // Inform the host of impending data transfer
    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
@@ -215,7 +206,8 @@ void host_interface_ping_host(void)
 
    // Set up the transfer buffer
    txBuffer[0] = 1;
-   txBuffer[1] = HOST_IFACE_INTERRUPT_PING;
+   txBuffer[1] = 0;
+   txBuffer[2] = HOST_IFACE_INTERRUPT_PING;
 
    // Inform the host of impending data transfer
    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
@@ -237,7 +229,8 @@ void host_interface_request_time(void)
 
    // Set up the transfer buffer
    txBuffer[0] = 1;
-   txBuffer[1] = HOST_IFACE_INTERRUPT_REQUEST_TIME;
+   txBuffer[1] = 0;
+   txBuffer[2] = HOST_IFACE_INTERRUPT_REQUEST_TIME;
 
    // Inform the host of impending data transfer
    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
@@ -259,7 +252,8 @@ void host_interface_notify_stopped(void)
 
    // Set up the transfer buffer
    txBuffer[0] = 1;
-   txBuffer[1] = HOST_IFACE_INTERRUPT_STOPPED;
+   txBuffer[1] = 0;
+   txBuffer[2] = HOST_IFACE_INTERRUPT_STOPPED;
 
    // Inform the host of impending data transfer
    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
@@ -410,7 +404,7 @@ void CPAL_I2C_RXTC_UserCallback(CPAL_InitTypeDef *pDevInitStruct)
          // Send packet length to the host
          atomic_set(&tx_needs_ack);
          txStructure.pbBuffer = txBuffer;
-         txStructure.wNumData = 1;
+         txStructure.wNumData = 2;
          CPAL_I2C_Write(&I2C1_DevStructure);
          break;
       }
@@ -422,8 +416,8 @@ void CPAL_I2C_RXTC_UserCallback(CPAL_InitTypeDef *pDevInitStruct)
       {
          // Send packet to the host and clear interrupt
          atomic_set(&tx_needs_ack);
-         txStructure.pbBuffer = txBuffer + 1;
-         txStructure.wNumData = txBuffer[0]; //txBuffer[1] << 8  + txBuffer[0]; //debugging raw data transfer
+         txStructure.pbBuffer = txBuffer + 2;
+         txStructure.wNumData = (txBuffer[1] << 8)  + txBuffer[0];
          CPAL_I2C_Write(&I2C1_DevStructure);
          break;
       }
