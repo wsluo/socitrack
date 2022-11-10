@@ -17,7 +17,8 @@ static squarepoint_interface_data_callback _data_callback = NULL;
 #define MAX_NUM_SQUAREPOINT_INTERRUPTS 4
 
 static const nrfx_twi_t _twi_instance = NRFX_TWI_INSTANCE(1);
-static uint8_t _twi_tx_buf[32], _twi_rx_bufs[MAX_NUM_SQUAREPOINT_INTERRUPTS][256], _twi_rx_lens[MAX_NUM_SQUAREPOINT_INTERRUPTS];
+static uint8_t _twi_tx_buf[32], _twi_rx_bufs[MAX_NUM_SQUAREPOINT_INTERRUPTS][256];
+static uint16_t _twi_rx_lens[MAX_NUM_SQUAREPOINT_INTERRUPTS];
 static nrfx_twi_xfer_desc_t _tx_data_description = { .type = NRFX_TWI_XFER_TX, .address = SQUAREPOINT_ADDRESS,
                                                      .p_primary_buf = _twi_tx_buf, .p_secondary_buf = NULL,
                                                      .primary_length = 1, .secondary_length = 0 };
@@ -85,6 +86,7 @@ static void squarepoint_interrupt_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_pola
          while ((err_code != NRFX_SUCCESS) && num_retries--)
             err_code = nrfx_twi_xfer(&_twi_instance, &_rx_length_descriptions[idx], NRFX_TWI_FLAG_NO_XFER_EVT_HANDLER);
       }
+	  log_printf("squarepoint_interface.c: readed twi_rx length is %u\n",_twi_rx_lens[idx]);//debugging raw data transfer
       if ((err_code != NRFX_SUCCESS) || !_twi_rx_lens[idx] || (_twi_rx_lens[idx] == 0xFF))
       {
          log_printf("ERROR: Failed reading SquarePoint packet length\n");

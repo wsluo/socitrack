@@ -92,7 +92,7 @@ void host_interface_wait(void)
 }
 
 // Send the ranges to the host
-void host_interface_notify_ranges(uint8_t *ids_ranges, uint8_t len)
+void host_interface_notify_ranges(uint8_t *ids_ranges, uint16_t len)
 {
    // Output the number of ranges being reported
    if (ids_ranges[0])
@@ -100,6 +100,9 @@ void host_interface_notify_ranges(uint8_t *ids_ranges, uint8_t len)
       debug_msg("INFO: Reporting range to ");
       debug_msg_uint(ids_ranges[0]);
       debug_msg(" device(s):\n");
+	  debug_msg("host_interface_notify_ranges len: ");//debugging raw data transfer
+	  debug_msg_uint(len);//debugging raw data transfer
+	  debug_msg("\n");//debugging raw data transfer
    }
 
    // Output the ranging results
@@ -121,6 +124,11 @@ void host_interface_notify_ranges(uint8_t *ids_ranges, uint8_t len)
          debug_msg("Unable to calculate!");
       debug_msg("\n");
    }
+   for (uint8_t i = 0; i<100; i++){//debugging raw data transfer
+	   debug_msg_uint(ids_ranges[i]);  	
+	   debug_msg(" ");
+   }
+   debug_msg("\n");//debugging raw data transfer
 
    // Wait for the host to complete any pending reads
    if (atomic_read(&tx_needs_ack))
@@ -131,7 +139,13 @@ void host_interface_notify_ranges(uint8_t *ids_ranges, uint8_t len)
    while (GPIO_ReadInputDataBit(EXT_INTERRUPT_PORT, EXT_INTERRUPT_PIN) == Bit_SET);
 
    // Set up the transfer buffer
-   txBuffer[0] = 1 + len;
+   txBuffer[0] = ((1 + len) & 0x00ff); // len = 256: causes overflow
+   //txBuffer[1] = ((1 + len) & 0xff00) >> 8;	
+   debug_msg("tx buffer: ");//debugging raw data transfer
+   debug_msg_uint(txBuffer[0]); //debugging raw data transfer
+   debug_msg(" ");//debugging raw data transfer
+   debug_msg_uint(txBuffer[1]); //debugging raw data transfer
+   debug_msg("\n");//debugging raw data transfer
    txBuffer[1] = HOST_IFACE_INTERRUPT_RANGES;
    memcpy(txBuffer + 2, ids_ranges, len);
 
@@ -409,7 +423,7 @@ void CPAL_I2C_RXTC_UserCallback(CPAL_InitTypeDef *pDevInitStruct)
          // Send packet to the host and clear interrupt
          atomic_set(&tx_needs_ack);
          txStructure.pbBuffer = txBuffer + 1;
-         txStructure.wNumData = txBuffer[0];
+         txStructure.wNumData = txBuffer[0]; //txBuffer[1] << 8  + txBuffer[0]; //debugging raw data transfer
          CPAL_I2C_Write(&I2C1_DevStructure);
          break;
       }

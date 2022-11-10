@@ -44,7 +44,7 @@ typedef enum
 
 uint32_t host_interface_init(void);
 void host_interface_wait(void);
-void host_interface_notify_ranges(uint8_t *ids_ranges, uint8_t len);
+void host_interface_notify_ranges(uint8_t *ids_ranges, uint16_t len);
 void host_interface_notify_calibration(uint8_t *calibration_data, uint8_t len);
 void host_interface_schedule_wakeup(uint8_t quarter_wakeup_delay_ms);
 void host_interface_ping_host(void);
