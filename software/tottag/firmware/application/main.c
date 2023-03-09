@@ -445,23 +445,28 @@ void normal_mode_process(void)
    // Update the BLE advertising and scanning states
    if (!app_enabled)
    {
-      if (nrfx_atomic_flag_fetch(&_app_flags.bluetooth_is_scanning))
-         ble_stop_scanning();
+	  if (nrfx_atomic_flag_fetch(&_app_flags.bluetooth_is_scanning))
+		 log_printf("DEBUG: APP NOT ENABLED... Stop BLE Scanning... %s \n", __FUNCTION__);
+		 ble_stop_scanning();
       if (nrfx_atomic_flag_fetch(&_app_flags.bluetooth_is_advertising))
+		 log_printf("DEBUG: APP NOT ENABLED... Stop BLE Advertising... %s \n", __FUNCTION__);
          ble_stop_advertising();
    }
    else
    {
       if (!nrfx_atomic_flag_fetch(&_app_flags.bluetooth_is_advertising) && nrfx_atomic_flag_fetch(&_app_flags.rtc_time_valid))
+		 log_printf("DEBUG: RTC Valid... Start BLE Advertising... %s \n", __FUNCTION__);
          ble_start_advertising();
       if (nrfx_atomic_flag_fetch(&_app_flags.squarepoint_running))
       {
          if (nrfx_atomic_flag_fetch(&_app_flags.bluetooth_single_scanning) && !nrfx_atomic_flag_fetch(&_app_flags.bluetooth_is_scanning))
+			log_printf("DEBUG: Squarepoint Running... Start BLE Scanning... %s \n", __FUNCTION__);
             ble_start_scanning();
-         else if (!nrfx_atomic_flag_fetch(&_app_flags.bluetooth_single_scanning) && nrfx_atomic_flag_fetch(&_app_flags.bluetooth_is_scanning))
-            ble_stop_scanning();
+         //else if (!nrfx_atomic_flag_fetch(&_app_flags.bluetooth_single_scanning) && nrfx_atomic_flag_fetch(&_app_flags.bluetooth_is_scanning))
+         //   ble_stop_scanning();
       }
       else if (!nrfx_atomic_flag_fetch(&_app_flags.bluetooth_is_scanning))
+		 log_printf("DEBUG: Squarepoint Not Running... Still Start BLE Scanning... %s \n", __FUNCTION__); 
          ble_start_scanning();
    }
 

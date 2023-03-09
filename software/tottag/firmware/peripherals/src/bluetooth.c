@@ -67,6 +67,7 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt);
 static void gatt_evt_handler(nrf_ble_gatt_t *p_gatt, nrf_ble_gatt_evt_t const *p_evt);
 static void on_ble_service_discovered(ble_db_discovery_evt_t * p_evt);
 static bool addr_in_whitelist(ble_gap_addr_t const *ble_addr) { return (memcmp(ble_addr->addr + APP_BLE_ADV_SCHED_EUI_LENGTH, _wl_addr_base.addr + APP_BLE_ADV_SCHED_EUI_LENGTH, sizeof(_wl_addr_base.addr) - APP_BLE_ADV_SCHED_EUI_LENGTH) == 0); }
+static char* print_address(const ble_gap_evt_adv_report_t* p_adv_report);
 static uint8_t ascii_to_i(uint8_t number)
 {
    // Convert single digit of ASCII in hex to a number
@@ -79,6 +80,19 @@ static uint8_t ascii_to_i(uint8_t number)
    else
       log_printf("ERROR: Tried converting non-hex ASCII: %i\n", number);
    return 0;
+}
+
+static char* print_address(const ble_gap_evt_adv_report_t* p_adv_report) {
+	//needs malloc otherwise local variable is destroyed upon exiting
+	char* buffer = (char *)malloc(30);
+    sprintf(buffer, "addr: %02x:%02x:%02x:%02x:%02x:%02x ",
+       p_adv_report->peer_addr.addr[5],
+       p_adv_report->peer_addr.addr[4],
+       p_adv_report->peer_addr.addr[3],
+       p_adv_report->peer_addr.addr[2],
+       p_adv_report->peer_addr.addr[1],
+       p_adv_report->peer_addr.addr[0]);
+	return buffer;
 }
 
 
@@ -281,10 +295,12 @@ static uint8_t on_scheduler_eui(const uint8_t* scheduler_eui, bool force_update)
    memcpy(_scheduler_eui, scheduler_eui, sizeof(_scheduler_eui));
 
    // Stop BLE advertisements, update data, and restart
+   log_printf("DEBUG: Stop Advertising...%s %p \n", __FUNCTION__, __builtin_return_address(0));
    ble_stop_advertising();
    memcpy(_app_ble_advdata, _scheduler_eui, APP_BLE_ADVDATA_LENGTH);
    ble_advertising_init(&_advertising, &_adv_init);
    ble_advertising_conn_cfg_tag_set(&_advertising, APP_BLE_CONN_CFG_TAG);
+   log_printf("DEBUG: Start Advertising...%s %p \n", __FUNCTION__, __builtin_return_address(0));
    ble_start_advertising();
    return switched_euis;
 }
@@ -310,6 +326,11 @@ static uint32_t adv_report_parse(uint8_t type, const ble_data_t* p_advdata, ble_
 
 static void on_adv_report(ble_gap_evt_adv_report_t const *p_adv_report)
 {
+   //only show info from tottags
+   if (p_adv_report->peer_addr.addr[5] == 0xc0 && p_adv_report->peer_addr.addr[4] == 0x98){
+	   log_printf("RSSI: %d, %d, on_adv_report %s %lu %lu \n", p_adv_report->rssi, p_adv_report->ch_index, print_address(p_adv_report), rtc_get_current_time(), ms_since_sync());
+   }
+
    // Only handle non-response BLE packets from devices we know
    if (!p_adv_report->type.scan_response && addr_in_whitelist(&p_adv_report->peer_addr) && (memcmp(p_adv_report->peer_addr.addr, _empty_eui, sizeof(_empty_eui)) != 0))
    {
@@ -335,7 +356,7 @@ static void on_adv_report(ble_gap_evt_adv_report_t const *p_adv_report)
          log_printf("INFO: BLE scanning window and interval have been reset to their default values\n");
          _scan_params.interval = APP_SCAN_INTERVAL;
          _scan_params.window = APP_SCAN_WINDOW;
-         sd_ble_gap_scan_stop();
+         //sd_ble_gap_scan_stop();
       }
    }
 }
@@ -427,6 +448,10 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
       }
       case BLE_GAP_EVT_CONNECTED:
       {
+		 log_printf("DEBUG: BLE CONNECTION ESTBLISHED!\n");
+         // added for rssi
+         APP_ERROR_CHECK(sd_ble_gap_rssi_start(p_ble_evt->evt.gap_evt.conn_handle,0,0));
+
          // Assign BLE connection handle
          _ble_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
          APP_ERROR_CHECK(nrf_ble_qwr_conn_handle_assign(&_qwr, _ble_conn_handle));
@@ -447,12 +472,21 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
       }
       case BLE_GAP_EVT_DISCONNECTED:
       {
+		 log_printf("DEBUG: BLE DISCONNECTED!\n");
+
          memset(_sd_command_data, 0, sizeof(_sd_command_data));
          _outgoing_ble_connection_active = _locations_subscribed = _sd_management_command = _data_transfer_initiated = 0;
          _ble_conn_handle = BLE_CONN_HANDLE_INVALID;
          nrfx_atomic_flag_clear(_sd_card_maintenance_mode_flag);
          break;
       }
+	  case BLE_GAP_EVT_RSSI_CHANGED:
+	  {
+        int8_t  rssi_value   =  p_ble_evt->evt.gap_evt.params.rssi_changed.rssi;
+		uint8_t rssi_channel =  p_ble_evt->evt.gap_evt.params.rssi_changed.ch_index;
+
+		log_printf("RSSI: %d, %d, %lu %lu \n",rssi_value, rssi_channel, rtc_get_current_time(), ms_since_sync());
+	  }
       case BLE_GAP_EVT_ADV_REPORT:
       {
          on_adv_report(&p_ble_evt->evt.gap_evt.params.adv_report);
@@ -612,16 +646,22 @@ const uint8_t* ble_get_empty_eui(void) { return _empty_eui; }
 const uint8_t* ble_get_scheduler_eui(void) { return _scheduler_eui; }
 const uint8_t* ble_get_highest_network_eui(void) { return _highest_discovered_eui; }
 
-void ble_start_advertising(void) { ble_advertising_start(&_advertising, BLE_ADV_MODE_FAST); }
+void ble_start_advertising(void)
+{
+	//log_printf("DEBUG: Starting Advertising...%s %p \n", __FUNCTION__, __builtin_return_address(0));
+	ble_advertising_start(&_advertising, BLE_ADV_MODE_FAST);
+}
 
 void ble_stop_advertising(void)
 {
+   log_printf("DEBUG: Stopping Advertising...%s %p \n", __FUNCTION__, __builtin_return_address(0));
    ble_advertising_start(&_advertising, BLE_ADV_MODE_IDLE);
    sd_ble_gap_adv_stop(_advertising.adv_handle);
 }
 
 void ble_start_scanning(void)
 {
+   //log_printf("DEBUG: Starting Scaninng...%s %p \n", __FUNCTION__, __builtin_return_address(0));
    // Start scanning for devices if not currently connected to a device
    if (!_outgoing_ble_connection_active)
    {
@@ -636,11 +676,16 @@ void ble_start_scanning(void)
          nrfx_atomic_flag_clear(_ble_scanning_flag);
       }
    }
+   else
+   {
+	   log_printf("DEBUG: Already Connected...%s %p \n", __FUNCTION__, __builtin_return_address(0));
+   }
 }
 
 void ble_stop_scanning(void)
 {
-   sd_ble_gap_scan_stop();
+   log_printf("DEBUG: Stopping Scaninng...%s \n", __FUNCTION__);
+   //sd_ble_gap_scan_stop();
    nrfx_atomic_flag_clear(_ble_scanning_flag);
    nrfx_atomic_u32_store(&_network_discovered_counter, 0);
    memset(_highest_discovered_eui, 0, sizeof(_highest_discovered_eui));

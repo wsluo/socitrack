@@ -4,17 +4,21 @@
 #include "nrfx_rtc.h"
 #include "rtc.h"
 
+#define RTC_PRESCALER 1023
+#define INPUT_FREQ (32768 / (RTC_PRESCALER + 1))
 
 // Static RTC state variables ------------------------------------------------------------------------------------------
 
 static const nrfx_rtc_t _rtc_instance = NRFX_RTC_INSTANCE(2);
 static nrfx_atomic_u32_t _rtc_sync_time, _rtc_sync_rtc_counter;
-
+static uint32_t _rtc_timestamp_ms = 0;
 
 // Private helper functions --------------------------------------------------------------------------------------------
 
 static void rtc_handler(nrfx_rtc_int_type_t int_type) {}
-static uint32_t rtc_to_s(uint32_t ticks) { return ticks / 8; }
+
+static uint32_t rtc_to_s(uint32_t ticks) { return ticks / INPUT_FREQ; }
+static uint32_t rtc_to_ms(uint32_t ticks) { return 1000 * ticks / INPUT_FREQ; }
 
 
 // Public RTC functionality --------------------------------------------------------------------------------------------
@@ -24,7 +28,7 @@ void rtc_init(void)
    // Initialize the RTC instance
    uint32_t dummy_val;
    nrfx_rtc_config_t rtc_config = NRFX_RTC_DEFAULT_CONFIG;
-   rtc_config.prescaler = 4095;  // Ticks at 8 Hz; PRESCALER is 12bit register (2^12 - 1 = 4095)
+   rtc_config.prescaler = RTC_PRESCALER;  // Ticks at 8 Hz; PRESCALER is 12bit register (2^12 - 1 = 4095)
    _rtc_sync_time = _rtc_sync_rtc_counter = 0;
    APP_ERROR_CHECK(nrfx_rtc_init(&_rtc_instance, &rtc_config, rtc_handler));
    nrfx_rtc_int_disable(&_rtc_instance, &dummy_val);
@@ -36,7 +40,7 @@ void rtc_init(void)
    uint32_t last_tick = nrfx_rtc_counter_get(&_rtc_instance);
    while (nrfx_rtc_counter_get(&_rtc_instance) == last_tick)
       nrf_delay_ms(1);
-   while (nrfx_rtc_counter_get(&_rtc_instance) > 8)
+   while (nrfx_rtc_counter_get(&_rtc_instance) > INPUT_FREQ)
    {
       nrfx_rtc_counter_clear(&_rtc_instance);
       nrf_delay_ms(1);
@@ -62,4 +66,13 @@ void rtc_set_current_time(uint32_t epoch)
    // Set the current application time
    _rtc_sync_time = epoch;
    _rtc_sync_rtc_counter = nrfx_rtc_counter_get(&_rtc_instance);
+}
+
+uint32_t ms_since_sync()
+{
+    // Check for an RTC overflow
+    uint32_t current_rtc_counter = nrfx_rtc_counter_get(&_rtc_instance);
+
+    // Return the current application time
+    return rtc_to_ms(current_rtc_counter - _rtc_sync_rtc_counter);
 }
