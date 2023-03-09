@@ -328,7 +328,7 @@ static void on_adv_report(ble_gap_evt_adv_report_t const *p_adv_report)
 {
    //only show info from tottags
    if (p_adv_report->peer_addr.addr[5] == 0xc0 && p_adv_report->peer_addr.addr[4] == 0x98){
-	   log_printf("RSSI: %d, %d, on_adv_report %s %lu %lu \n", p_adv_report->rssi, p_adv_report->ch_index, print_address(p_adv_report), rtc_get_current_time(), ms_since_sync());
+	   log_printf("RSSI: %d, %d, %lu, %lu, on_adv_report %s \n", p_adv_report->rssi, p_adv_report->ch_index, rtc_get_current_time(), ms_since_sync(), print_address(p_adv_report));
    }
 
    // Only handle non-response BLE packets from devices we know
@@ -485,7 +485,7 @@ void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
         int8_t  rssi_value   =  p_ble_evt->evt.gap_evt.params.rssi_changed.rssi;
 		uint8_t rssi_channel =  p_ble_evt->evt.gap_evt.params.rssi_changed.ch_index;
 
-		log_printf("RSSI: %d, %d, %lu %lu \n",rssi_value, rssi_channel, rtc_get_current_time(), ms_since_sync());
+		log_printf("RSSI: %d, %d, %lu, %lu \n",rssi_value, rssi_channel, rtc_get_current_time(), ms_since_sync());
 	  }
       case BLE_GAP_EVT_ADV_REPORT:
       {

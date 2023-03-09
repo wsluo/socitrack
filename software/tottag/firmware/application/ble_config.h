@@ -14,7 +14,7 @@
 
 // User configurable debug definitions ---------------------------------------------------------------------------------
 
-#define STOP_BLE_AND_SQUAREPOINT_WHEN_CHARGING
+//#define STOP_BLE_AND_SQUAREPOINT_WHEN_CHARGING
 #define ENABLE_LOW_BATTERY_SOUNDS
 #define ENABLE_SOUNDS
 #define ENABLE_LEDS
@@ -200,7 +200,7 @@ typedef struct app_flags_t
 #define APP_ADV_INTERVAL_CAL_MS 50
 
 // Central
-#define APP_SCAN_INTERVAL_MS    185
+#define APP_SCAN_INTERVAL_MS    85
 #define APP_SCAN_WINDOW_MS      (APP_ADV_INTERVAL_MS + 15)
 
 // No-network transitions
